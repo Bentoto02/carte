@@ -4,9 +4,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout : réseau de neurones animé en fond + aurore, carte en verre au bord lumineux tournant,
-   qui s'incline sous le doigt ; nom qui se décode, rôle qui s'écrit, QR codes scannés en boucle.
-   Look sombre assumé (une seule apparence), toutes les couleurs posées explicitement. */
+/* Layout : réseau de neurones animé en fond + aurore. 3 scènes au défilement :
+   1. la vidéo, 2. le parcours 3D (la méthode en 4 étapes), 3. la porte « Et vous, quel est votre projet ? ».
+   Depuis la porte : deux panneaux plein écran, « Votre projet » (questionnaire) et « Ma carte » (carte de visite),
+   plus « Vos données ». Look sombre assumé (une seule apparence), toutes les couleurs posées explicitement. */
 :root {
   --bg: #070912;
   --bg-2: #0d1122;
@@ -17,6 +18,7 @@
   --cyan: #3ee6ff;
   --indigo: #7c6cff;
   --mint: #5dffb5;
+  --rouge: #ff8a9a;
   --f-display: "Syne", "Segoe UI", system-ui, sans-serif;
   --f-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
   --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
@@ -30,40 +32,46 @@ body {
   overflow-x: hidden; position: relative;
   -webkit-tap-highlight-color: transparent;
 }
-/* Le spectacle : 3 scènes (vidéo, parcours, carte de visite) qui s'enclenchent au défilement */
+[hidden] { display: none !important; }
+/* Le spectacle : 3 scènes qui s'enclenchent au défilement */
 html { scroll-snap-type: y mandatory; }
+html.verrou, html.verrou body { overflow: hidden; }
 .show { position: relative; z-index: 1; }
 .scene {
   position: relative; height: 100svh; min-height: 520px; overflow: hidden;
   scroll-snap-align: start; display: flex; align-items: flex-end;
 }
-.scene video, .scene canvas#iso { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scene video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,9,18,0) 35%, rgba(7,9,18,.85) 82%, var(--bg)); pointer-events: none; }
 .say {
   position: relative; z-index: 2; padding: 0 22px calc(48px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px;
-  animation: up .9s cubic-bezier(.2,.8,.2,1) both .3s;
+  animation: up .9s cubic-bezier(.2,.8,.2,1) both .3s; max-width: 100%; min-width: 0;
 }
 @keyframes up { from { transform: translateY(24px); opacity: .3; } }
 .tag { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
 .big {
   margin: 0; font-family: var(--f-display); font-weight: 800; font-size: clamp(34px, 10.5vw, 52px); line-height: 1.02;
-  letter-spacing: -.015em; text-wrap: balance;
+  letter-spacing: -.015em; text-wrap: balance; overflow-wrap: break-word;
   background: linear-gradient(100deg, var(--fg) 30%, var(--cyan) 50%, var(--fg) 70%); background-size: 250% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 5s ease-in-out 1.5s infinite;
 }
-.say { max-width: 100%; min-width: 0; }
-.big { overflow-wrap: break-word; }
 .small { margin: 0; color: #d0d7ee; font-size: 16px; max-width: 32ch; }
+.competences { margin: 0; color: var(--cyan); font-size: 14.5px; font-weight: 500; max-width: 36ch; }
 .hint { font-family: var(--f-mono); font-size: 12px; color: var(--muted); animation: bob 1.6s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(5px); } }
 .jeu { position: absolute; inset: 0; }
 .say.haut { position: absolute; top: 0; left: 0; right: 0; padding: calc(24px + env(safe-area-inset-top, 0px)) 22px 0; pointer-events: none; gap: 8px; }
-/* Guidage du parcours : une barre de progression + une consigne */
-.progres { height: 12px; margin: 0 0 2px; border-radius: 99px; overflow: hidden;
+/* Guidage du parcours : une barre de progression + une consigne, et « Passer » */
+.ligne-haut { display: flex; align-items: center; gap: 12px; }
+.progres { flex: 1; height: 12px; margin: 0; border-radius: 99px; overflow: hidden;
   background: rgba(148,160,210,.16); border: 1px solid rgba(148,160,210,.32); }
 .progres i { display: block; height: 100%; width: 0; border-radius: inherit;
   background: linear-gradient(90deg, var(--cyan), var(--mint)); box-shadow: 0 0 14px rgba(93,255,181,.7);
   transition: width .6s cubic-bezier(.2,1.3,.4,1); }
+.passer { pointer-events: auto; flex: none; min-height: 44px; padding: 0 12px; margin: -16px -10px -16px 0;
+  border: 0; background: none; color: var(--muted); font: 500 14px var(--f-body); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(148,160,210,.45); }
+.passer:active { color: var(--fg); }
 .guide-p { margin: 0; font: 700 19px/1.3 var(--f-body); color: var(--fg); min-height: 2.6em; text-wrap: balance; }
 @keyframes ping-c { 70% { box-shadow: 0 0 0 9px rgba(62,230,255,0); } 100% { box-shadow: 0 0 0 0 rgba(62,230,255,0); } }
 /* Flèche qui montre où toucher */
@@ -79,26 +87,124 @@ html { scroll-snap-type: y mandatory; }
 .fondu.on { opacity: 1; }
 /* Secours sans 3D : 4 cartes + le bureau */
 .plan { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;
-  padding: calc(130px + env(safe-area-inset-top, 0px)) 22px calc(28px + env(safe-area-inset-bottom, 0px)); }
+  padding: calc(120px + env(safe-area-inset-top, 0px)) 22px calc(24px + env(safe-area-inset-bottom, 0px)); }
 .etape { display: block; width: 100%; text-align: left; padding: 11px 44px 11px 14px; border-radius: 14px; cursor: pointer;
   border: 1px solid var(--line); background: rgba(16,21,40,.6); color: var(--muted); font: 700 16px/1.3 var(--f-body);
   opacity: .55; transition: opacity .3s, background .3s, border-color .3s, color .3s; }
 .etape small { display: none; margin-top: 3px; font: 400 14px/1.4 var(--f-body); color: #d8def3; }
+.etape small em { display: block; margin-top: 4px; font-style: normal; color: var(--cyan); }
 .etape.cur { opacity: 1; color: var(--fg); border-color: var(--cyan); animation: ping-c 1.6s infinite; }
 .etape.on { opacity: 1; color: var(--mint); border-color: rgba(93,255,181,.55); background: rgba(93,255,181,.08); }
 .etape.on small { display: block; }
 .etape.bureau { text-align: center; font-size: 17px; padding: 14px; }
 .etape.bureau.cur { color: #061018; background: linear-gradient(100deg, var(--cyan), var(--mint)); border-color: transparent; }
 
-/* Dernière scène : la carte de visite, dans la page */
-.scene.s-carte {
+/* Scène 3 : la porte, « Et vous, quel est votre projet ? » */
+.scene.s-porte {
   display: block; height: auto; min-height: 100svh; overflow: visible;
-  padding: calc(30px + env(safe-area-inset-top, 0px)) 14px calc(30px + env(safe-area-inset-bottom, 0px));
-  background: radial-gradient(120% 60% at 50% 30%, rgba(124,108,255,.16), transparent 70%);
+  padding: calc(34px + env(safe-area-inset-top, 0px)) 18px calc(26px + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(80% 40% at 50% 0%, rgba(191,248,255,.20), transparent 70%),
+    radial-gradient(120% 60% at 50% 40%, rgba(124,108,255,.14), transparent 70%);
 }
-/* 2ᵉ point d'arrêt du défilement, en bas de la carte : on peut toujours atteindre le bas, même avec le « snap » */
-.s-carte .fin { height: 1px; scroll-snap-align: end; }
-.s-carte > .big { max-width: 430px; margin: 0 auto 18px; padding-inline: 8px; }
+.porte-in { position: relative; z-index: 2; max-width: 460px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+.porte-in > .big { font-size: clamp(29px, 8.4vw, 44px); }
+.s-porte .fin { height: 1px; scroll-snap-align: end; }
+.choix { display: flex; flex-direction: column; gap: 12px; }
+.choix-btn {
+  display: flex; align-items: center; gap: 14px; width: 100%; min-height: 76px; padding: 12px 16px; text-align: left;
+  border-radius: 18px; cursor: pointer; font: inherit; color: var(--fg);
+  border: 1px solid rgba(124,108,255,.5); background: rgba(16,21,40,.78);
+}
+.choix-btn strong { display: block; font: 800 21px/1.15 var(--f-display); }
+.choix-btn small { display: block; margin-top: 3px; font-size: 14px; color: var(--muted); }
+.choix-btn .fl { margin-left: auto; font-size: 22px; flex: none; }
+.choix-btn .ci { flex: none; width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: rgba(124,108,255,.2); }
+.choix-btn .ci svg { width: 26px; height: 26px; }
+.choix-btn .ci img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--cyan); }
+.choix-btn.principal { color: #061018; border-color: transparent; background: linear-gradient(100deg, var(--cyan), var(--mint));
+  box-shadow: 0 14px 34px -14px rgba(62,230,255,.8); }
+.choix-btn.principal small { color: #12303a; }
+.choix-btn.principal .ci { background: rgba(6,16,24,.14); }
+.choix-btn:active { transform: scale(.98); }
+.garanties { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.garanties li { display: flex; gap: 10px; align-items: flex-start; font-size: 15.5px; line-height: 1.35; color: #d8def3; }
+.garanties svg { flex: none; width: 20px; height: 20px; margin-top: 1px; }
+.chemin-bloc { display: flex; flex-direction: column; gap: 8px; }
+.chemin { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; font-size: 13.5px; }
+.chemin li { display: inline-flex; align-items: center; gap: 4px; }
+.chemin li span { padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); background: rgba(62,230,255,.07); white-space: nowrap; }
+.chemin li:first-child span { border-color: rgba(93,255,181,.6); color: var(--mint); }
+.chemin li + li::before { content: "→"; color: var(--muted); padding-right: 2px; }
+.lien { align-self: flex-start; min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer;
+  color: var(--muted); font: 500 14px var(--f-body); text-decoration: underline; text-underline-offset: 3px; }
+.lien-ligne { display: inline; min-height: 0; color: var(--cyan); font-size: inherit; }
+
+/* Panneaux plein écran : Votre projet, Ma carte, Vos données. La barre du haut est en dehors du contenu qui
+   défile (pas de backdrop-filter au-dessus d'elle) : le bouton Retour reste toujours visible. */
+.panneau { position: fixed; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--bg); }
+.panneau.dessus { z-index: 32; }
+.p-barre { flex: none; display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;
+  border-bottom: 1px solid var(--line); background: #0a0d1a; }
+.p-barre .progres { height: 10px; }
+.p-titre { font: 700 16px var(--f-body); color: var(--fg); }
+.p-btn { flex: none; min-height: 44px; min-width: 44px; padding: 0 14px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--fg); font: 600 15px var(--f-body); }
+.p-btn.croix { margin-left: auto; padding: 0; width: 44px; font-size: 18px; }
+.p-defile { flex: 1; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.p-corps { width: 100%; max-width: 480px; margin: 0 auto; padding: 22px 18px calc(30px + env(safe-area-inset-bottom, 0px)); }
+
+/* Questionnaire */
+.q-titre { margin: 0 0 8px; font: 800 clamp(25px, 7.2vw, 32px)/1.15 var(--f-display); text-wrap: balance; outline: none; }
+.q-fac { font: 500 15px var(--f-body); color: var(--muted); }
+.q-aide { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+.q-choix { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.q-opt { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 12px 14px; text-align: left;
+  border-radius: 14px; cursor: pointer; border: 1px solid rgba(148,160,210,.3); background: rgba(16,21,40,.7);
+  color: var(--fg); font: 500 16.5px/1.3 var(--f-body); transition: border-color .15s, background .15s; }
+.q-opt:active { transform: scale(.985); }
+.q-coche { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(148,160,210,.6); display: grid; place-items: center; }
+.q-opt.multi .q-coche { border-radius: 7px; }
+.q-opt[aria-pressed="true"] { border-color: var(--mint); background: rgba(93,255,181,.12); }
+.q-opt[aria-pressed="true"] .q-coche { border-color: var(--mint); background: var(--mint); }
+.q-opt[aria-pressed="true"] .q-coche::after { content: ""; width: 10px; height: 6px; margin-top: -3px; border: 3px solid #061018; border-top: 0; border-right: 0; transform: rotate(-45deg); }
+.q-opt.petit { min-height: 48px; justify-content: center; text-align: center; }
+.q-prefs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 0; }
+.q-prefs .q-opt { padding: 10px 6px; gap: 0; }
+.q-prefs .q-coche { display: none; }
+.q-suite { display: block; width: 100%; min-height: 56px; margin-top: 22px; border: 0; border-radius: 15px; cursor: pointer;
+  color: #061018; font: 700 17px var(--f-body); background: linear-gradient(100deg, var(--cyan), var(--mint));
+  box-shadow: 0 12px 30px -14px rgba(62,230,255,.8); }
+.q-suite:disabled { opacity: .6; cursor: progress; }
+.q-suite.second { color: var(--fg); background: rgba(255,255,255,.04); border: 1px solid var(--line); box-shadow: none; margin-top: 12px; }
+.q-err { margin: 6px 0 0; min-height: 0; color: var(--rouge); font-size: 14.5px; font-weight: 500; }
+.q-err:empty { display: none; }
+.q-champ { display: flex; flex-direction: column; gap: 6px; margin-top: 18px; }
+.q-champ > label, .q-label { font-weight: 700; font-size: 16px; }
+.q-champ > label span, .q-label span { font-weight: 500; color: var(--muted); font-size: 14.5px; }
+.q-in, .q-texte { width: 100%; min-height: 52px; padding: 12px 14px; border-radius: 13px; border: 1px solid rgba(148,160,210,.4);
+  background: #0d1122; color: var(--fg); font: 400 16px/1.4 var(--f-body); }
+.q-texte { min-height: 130px; resize: vertical; }
+.q-in:focus, .q-texte:focus { outline: 2px solid var(--cyan); outline-offset: 1px; border-color: transparent; }
+.q-in[aria-invalid="true"] { border-color: var(--rouge); }
+.q-note { margin: 16px 0 0; font-size: 14.5px; color: #d0d7ee; }
+.q-consent { display: flex; gap: 12px; align-items: flex-start; margin-top: 22px; padding: 14px; border-radius: 14px;
+  border: 1px solid rgba(148,160,210,.3); background: rgba(16,21,40,.7); cursor: pointer; font-size: 15.5px; line-height: 1.4; }
+.q-consent input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--mint); }
+.q-consent.invalide { border-color: var(--rouge); }
+.q-mention { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.piege { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.q-statut { margin-top: 16px; padding: 14px; border-radius: 14px; border: 1px solid rgba(255,138,154,.55); background: rgba(255,138,154,.08); }
+.q-statut p { margin: 0 0 6px; }
+.q-statut strong { color: var(--rouge); }
+.q-merci p { font-size: 17px; color: #d8def3; }
+
+/* Vos données */
+.donnees { margin: 18px 0 0; }
+.donnees dt { margin-top: 16px; font-weight: 700; color: var(--cyan); font-size: 15px; }
+.donnees dd { margin: 4px 0 0; color: #d8def3; font-size: 15.5px; }
+
+/* Ma carte : la carte de visite, dans son panneau */
 .photo {
   display: block; width: 132px; height: 132px; margin: 0 auto 4px; border-radius: 50%; object-fit: cover;
   border: 3px solid var(--cyan); box-shadow: 0 0 0 6px rgba(62,230,255,.12), 0 14px 40px -12px rgba(62,230,255,.65);
@@ -116,6 +222,10 @@ html { scroll-snap-type: y mandatory; }
   border: 1px solid var(--line); background: rgba(7,9,18,.35); color: var(--fg); font: 500 15px var(--f-body);
 }
 .rejouer:active { transform: scale(.98); }
+.rejouer.vers-projet { border-color: rgba(93,255,181,.5); color: var(--mint); font-weight: 700; }
+.preuve { margin: 0; display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px;
+  border: 1px dashed rgba(93,255,181,.45); color: var(--fg); font-size: 15px; font-weight: 500; }
+.preuve svg { flex: none; width: 22px; height: 22px; }
 #net { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .aurora { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(70px); opacity: .55; }
 .aurora i { position: absolute; border-radius: 50%; mix-blend-mode: screen; }
@@ -158,7 +268,7 @@ html { scroll-snap-type: y mandatory; }
 }
 .card > * { position: relative; z-index: 1; }
 
-.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); letter-spacing: .06em; }
+.card .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); letter-spacing: .06em; }
 .status { display: inline-flex; align-items: center; gap: 7px; color: var(--mint); }
 .status i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(93,255,181,.6); animation: ping 2s infinite; }
 @keyframes ping { 70% { box-shadow: 0 0 0 9px rgba(93,255,181,0); } 100% { box-shadow: 0 0 0 0 rgba(93,255,181,0); } }
@@ -181,7 +291,7 @@ h1 {
 .chips li {
   font-size: 13.5px; padding: 5px 12px; border-radius: 99px;
   border: 1px solid var(--line); background: rgba(124, 108, 255, .08);
-  animation: pop .55s cubic-bezier(.2,1.4,.4,1) both; animation-delay: calc(.9s + var(--i) * 70ms);
+  animation: pop .55s cubic-bezier(.2,1.4,.4,1) both; animation-delay: calc(.4s + var(--i) * 70ms);
   transition: border-color .2s, transform .2s, box-shadow .2s;
 }
 .chips li:hover { border-color: var(--cyan); transform: translateY(-2px); box-shadow: 0 6px 18px -8px var(--cyan); }
@@ -202,28 +312,14 @@ h1 {
   border-radius: 15px; text-decoration: none; color: #061018;
   background: linear-gradient(100deg, var(--cyan), var(--mint));
   box-shadow: 0 12px 30px -12px rgba(62,230,255,.7);
-  animation: slide .6s cubic-bezier(.2,.8,.2,1) both 1.3s;
 }
+.card .save { animation: slide .6s cubic-bezier(.2,.8,.2,1) both .6s; }
 .save::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-20deg); animation: shine 3.4s ease-in-out infinite 2s; }
 .save:active { transform: scale(.98); }
 .save-ico { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: rgba(6,16,24,.14); font: 700 24px var(--f-body); }
 .save-txt { display: flex; flex-direction: column; font-size: 13px; line-height: 1.3; }
 .save-txt strong { font-size: 16px; }
-.btn {
-  position: relative; overflow: hidden; flex: none; font: 500 12.5px var(--f-body); color: var(--fg);
-  background: rgba(124,108,255,.16); border: 1px solid rgba(124,108,255,.45); border-radius: 9px;
-  padding: 0 13px; min-height: 38px; display: inline-flex; align-items: center;
-  cursor: pointer; text-decoration: none; transition: transform .15s, background .2s;
-}
-.btn::after {
-  content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: skewX(-20deg);
-  animation: shine 4s ease-in-out infinite; animation-delay: calc(2s + var(--i, 0) * .4s);
-}
 @keyframes shine { 0%, 70% { left: -60%; } 100% { left: 130%; } }
-.btn:hover { background: rgba(124,108,255,.3); }
-.btn:active { transform: scale(.94); }
-.btn.ok { background: rgba(93,255,181,.18); border-color: var(--mint); }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 
 .qrs { display: flex; }
@@ -231,8 +327,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
   flex: 1; display: flex; flex-direction: row; align-items: center; gap: 14px; text-align: left;
   padding: 14px 10px 12px; border-radius: 16px; border: 1px solid var(--line); background: rgba(7,9,18,.4);
 }
-.code { position: relative; background: #ffffff; padding: 8px; border-radius: 10px; line-height: 0; overflow: hidden; }
-.code { flex: none; }
+.code { position: relative; flex: none; background: #ffffff; padding: 8px; border-radius: 10px; line-height: 0; overflow: hidden; }
 .code img, .code canvas { width: 104px; height: 104px; }
 /* Coins de visée */
 .code b { position: absolute; width: 16px; height: 16px; border: 2px solid var(--cyan); z-index: 2; }
@@ -250,8 +345,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .qr p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
 .qr p strong { color: var(--fg); display: block; font-weight: 700; font-size: 13.5px; }
 
-.foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-family: var(--f-mono); font-size: 11px; color: var(--muted); margin: 0; }
-.foot .sig { color: var(--indigo); }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-family: var(--f-mono); font-size: 11px; color: var(--muted); margin: 0; }
+.foot .lien { min-height: 32px; font: 500 12px var(--f-body); }
 
 /* Grand écran : la carte reste au format téléphone, au centre */
 @media (min-width: 700px) { body { padding-block: 40px; } }
@@ -266,7 +361,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
 
 <div class="show" id="show">
-  <section class="scene s-video" aria-label="L'IA en action">
+  <section class="scene s-video" aria-label="Présentation">
     <video id="vid" autoplay muted loop playsinline preload="metadata" poster="waouh-poster.jpg">
       <source src="waouh-web.webm" type="video/webm">
       <source src="waouh-web.mp4" type="video/mp4">
@@ -276,77 +371,163 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
       <span class="tag">01 · Présentation</span>
       <h2 class="big">Bonjour, je suis Benjamin Huteau.</h2>
       <p class="small">Consultant développeur IA. Je donne vie à vos idées grâce à l'intelligence artificielle.</p>
+      <p class="competences">Automatisation · Agent IA · CRM · Site · Logiciel · Jeu · Outil sur mesure</p>
       <span class="hint">Faites défiler ↓</span>
     </div>
   </section>
 
-  <section class="scene s-jeu" aria-label="Mini-jeu : mes compétences, puis entrez dans mon bureau">
+  <section class="scene s-jeu" aria-label="Mini-jeu : ma méthode en 4 étapes, puis entrez dans mon bureau">
     <div id="jeu" class="jeu"></div>
     <div class="fleche" id="jeu-fleche" aria-hidden="true" hidden>
       <svg viewBox="0 0 48 56"><path d="M15 3h18v25h12L24 53 3 28h12z" fill="#5dffb5" stroke="#061018" stroke-width="3" stroke-linejoin="round"/></svg>
     </div>
     <div class="say haut">
-      <div class="progres" id="jeu-progres" role="progressbar" aria-label="Progression du parcours" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><i></i></div>
+      <div class="ligne-haut">
+        <div class="progres" id="jeu-progres" role="progressbar" aria-label="Progression du parcours" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><i></i></div>
+        <button class="passer" id="passer" type="button">Passer →</button>
+      </div>
       <p class="guide-p" id="jeu-phrase" aria-live="polite">Chargement du jeu…</p>
     </div>
   </section>
 
-  <section class="scene s-carte" id="carte" aria-label="Ma carte de visite">
-    <h2 class="big">Et votre projet&nbsp;?</h2>
-    <div class="stage">
-      <div class="frame" id="frame">
-        <main class="card" id="card">
-          <div class="top">
-            <span class="status"><i></i>Disponible pour vos projets</span>
-            <span>v.2026</span>
-          </div>
-
-          <img class="photo" src="photo-benjamin.jpg" width="600" height="600" alt="Photo de Benjamin Huteau" decoding="async">
-
-          <header class="head">
-            <h1 id="name" data-text="Benjamin Huteau">Benjamin Huteau</h1>
-            <div class="role" aria-label="Consultant développeur IA"><span id="type">Consultant développeur IA</span><span class="caret"></span></div>
-          </header>
-
-          <p class="bio">J'accompagne chacun dans son projet numérique, quel qu'il soit. Vous avez une idée ou un besoin ? On le construit ensemble.</p>
-
-          <ul class="chips" aria-label="Exemples de projets">
-            <li style="--i:0">Jeu</li><li style="--i:1">Logiciel</li><li style="--i:2">CRM</li><li style="--i:3">Site internet</li>
-            <li style="--i:4">Automatisation</li><li style="--i:5">Assistant IA</li><li style="--i:6">Réseaux sociaux</li><li style="--i:7">Outil sur mesure</li>
-          </ul>
-
-          <div class="price"><b>Sur devis</b><span>selon votre projet et sa complexité</span></div>
-
-          <section class="rows" aria-label="Coordonnées">
-            <a class="save" href="https://bentoto02.github.io/carte/benjamin-huteau.vcf" target="_blank" rel="noopener">
-              <span class="save-ico" aria-hidden="true">+</span>
-              <span class="save-txt"><strong>Enregistrer le contact</strong>Téléphone et mail dans votre répertoire</span>
-            </a>
-            <div class="reseaux">
-              <a class="reseau" href="https://www.instagram.com/__bento___/" target="_blank" rel="noopener" aria-label="Instagram de Benjamin Huteau">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>
-              </a>
-              <a class="reseau" href="https://www.linkedin.com/in/benjamin-huteau-75796a1b1" target="_blank" rel="noopener" aria-label="LinkedIn de Benjamin Huteau">
-                <svg viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 7.5v7h2.4v-7H7zm1.2-4a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8zM11 10.5v7h2.4v-3.7c0-1 .4-1.6 1.3-1.6.8 0 1.2.6 1.2 1.6v3.7h2.4v-4.3c0-2-1-2.9-2.6-2.9-1 0-1.8.5-2.2 1.1v-.9H11z"/></svg>
-              </a>
-            </div>
-          </section>
-
-          <section class="qrs" aria-label="Partager la carte">
-            <div class="qr">
-              <div class="code" id="qr-page"><b></b><b></b><b></b><b></b></div>
-              <p><strong>Partagez cette carte</strong>Montrez ce code : on le scanne, la carte s'ouvre.</p>
-            </div>
-          </section>
-
-          <p class="foot"><span>Région d'Angers · à distance partout en France</span><span class="sig">&lt;/&gt; fait avec l'IA</span></p>
-
-          <button class="rejouer" id="rejouer" type="button">↺ Rejouer le parcours</button>
-        </main>
+  <section class="scene s-porte" id="porte" aria-labelledby="porte-titre">
+    <div class="porte-in">
+      <h2 class="big" id="porte-titre">Et vous, quel est votre projet&nbsp;?</h2>
+      <div class="choix">
+        <button class="choix-btn principal" id="ouvrir-projet" type="button">
+          <span class="ci" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6M8 4H6a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-2"/><path d="M9 3h6v3H9z"/><path d="M8.5 13l2.2 2.2L15.5 10"/></svg></span>
+          <span><strong>Votre projet</strong><small>Quelques questions à toucher, puis je vous rappelle sous 48&nbsp;h</small></span>
+          <span class="fl" aria-hidden="true">→</span>
+        </button>
+        <button class="choix-btn" id="ouvrir-carte" type="button">
+          <span class="ci" aria-hidden="true"><img src="photo-benjamin.jpg" alt="" width="48" height="48" decoding="async" loading="lazy"></span>
+          <span><strong>Ma carte</strong><small>Photo, contact et réseaux</small></span>
+          <span class="fl" aria-hidden="true">→</span>
+        </button>
       </div>
+      <ul class="garanties" aria-label="Mes engagements">
+        <li><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#5dffb5"/><path d="M5.8 10.2l2.8 2.8 5.6-5.8" fill="none" stroke="#061018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Premier échange gratuit et sans engagement.</li>
+        <li><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#5dffb5"/><path d="M5.8 10.2l2.8 2.8 5.6-5.8" fill="none" stroke="#061018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Devis détaillé avant tout travail.</li>
+        <li><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#5dffb5"/><path d="M5.8 10.2l2.8 2.8 5.6-5.8" fill="none" stroke="#061018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Vous validez chaque étape.</li>
+        <li><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9" fill="#5dffb5"/><path d="M5.8 10.2l2.8 2.8 5.6-5.8" fill="none" stroke="#061018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>30 jours d'accompagnement inclus après la mise en place.</li>
+      </ul>
+      <div class="chemin-bloc">
+        <span class="tag">Comment ça se passe</span>
+        <ol class="chemin">
+          <li><span>Votre projet</span></li><li><span>Appel de 20 min</span></li><li><span>Devis</span></li><li><span>Mise en place</span></li><li><span>30 jours de suivi</span></li>
+        </ol>
+      </div>
+      <button class="lien" type="button" data-donnees>Vos données</button>
     </div>
     <div class="fin" aria-hidden="true"></div>
   </section>
+</div>
+
+<!-- Panneau « Ma carte » : la carte de visite -->
+<div class="panneau" id="p-carte" role="dialog" aria-modal="true" aria-label="Ma carte" hidden>
+  <div class="p-barre">
+    <button class="p-btn" type="button" data-fermer data-focus>← Retour</button>
+    <span class="p-titre">Ma carte</span>
+  </div>
+  <div class="p-defile">
+    <div class="p-corps">
+      <div class="stage">
+        <div class="frame" id="frame">
+          <main class="card" id="card">
+            <div class="top">
+              <span class="status"><i></i>Disponible pour vos projets</span>
+            </div>
+
+            <img class="photo" src="photo-benjamin.jpg" width="600" height="600" alt="Photo de Benjamin Huteau" decoding="async" loading="lazy">
+
+            <header class="head">
+              <h1 id="name" data-text="Benjamin Huteau" aria-label="Benjamin Huteau"><span aria-hidden="true" id="name-anim">Benjamin Huteau</span></h1>
+              <div class="role" aria-label="Consultant développeur IA"><span id="type" aria-hidden="true">Consultant développeur IA</span><span class="caret"></span></div>
+            </header>
+
+            <p class="bio">J'accompagne chacun dans son projet numérique, quel qu'il soit. Vous avez une idée ou un besoin ? On le construit ensemble.</p>
+
+            <p class="preuve"><svg viewBox="0 0 24 24" fill="none" stroke="#5dffb5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg>Cette carte, je l'ai construite <span style="white-space:nowrap">moi-même</span>.</p>
+
+            <ul class="chips" aria-label="Exemples de projets">
+              <li style="--i:0">Jeu</li><li style="--i:1">Logiciel</li><li style="--i:2">CRM</li><li style="--i:3">Site internet</li>
+              <li style="--i:4">Automatisation</li><li style="--i:5">Assistant IA</li><li style="--i:6">Réseaux sociaux</li><li style="--i:7">Outil sur mesure</li>
+            </ul>
+
+            <div class="price"><b>Sur devis</b><span>selon votre projet et sa complexité</span></div>
+
+            <section class="rows" aria-label="Coordonnées">
+              <a class="save" href="https://bentoto02.github.io/carte/benjamin-huteau.vcf" target="_blank" rel="noopener">
+                <span class="save-ico" aria-hidden="true">+</span>
+                <span class="save-txt"><strong>Enregistrer le contact</strong>Téléphone et mail dans votre répertoire</span>
+              </a>
+              <div class="reseaux">
+                <a class="reseau" href="https://www.instagram.com/__bento___/" target="_blank" rel="noopener" aria-label="Instagram de Benjamin Huteau">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>
+                </a>
+                <a class="reseau" href="https://www.linkedin.com/in/benjamin-huteau-75796a1b1" target="_blank" rel="noopener" aria-label="LinkedIn de Benjamin Huteau">
+                  <svg viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 7.5v7h2.4v-7H7zm1.2-4a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8zM11 10.5v7h2.4v-3.7c0-1 .4-1.6 1.3-1.6.8 0 1.2.6 1.2 1.6v3.7h2.4v-4.3c0-2-1-2.9-2.6-2.9-1 0-1.8.5-2.2 1.1v-.9H11z"/></svg>
+                </a>
+              </div>
+            </section>
+
+            <section class="qrs" aria-label="Partager la carte">
+              <div class="qr">
+                <div class="code" id="qr-page"><b></b><b></b><b></b><b></b></div>
+                <p><strong>Partagez cette carte</strong>Montrez ce code : on le scanne, la carte s'ouvre.</p>
+              </div>
+            </section>
+
+            <button class="rejouer vers-projet" id="carte-projet" type="button">Votre projet →</button>
+            <button class="rejouer" id="rejouer" type="button">↺ Rejouer le parcours</button>
+
+            <p class="foot"><span>Région d'Angers · à distance partout en France</span><button class="lien" type="button" data-donnees>Vos données</button></p>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panneau « Votre projet » : le questionnaire, un écran par question (construit par le script) -->
+<div class="panneau" id="p-projet" role="dialog" aria-modal="true" aria-label="Votre projet" hidden>
+  <div class="p-barre">
+    <button class="p-btn" type="button" id="q-retour" data-focus>← Retour</button>
+    <div class="progres" id="q-progres" role="progressbar" aria-label="Progression du questionnaire" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+    <button class="p-btn croix" type="button" data-fermer aria-label="Fermer le questionnaire">✕</button>
+  </div>
+  <div class="p-defile" id="q-defile">
+    <div class="p-corps" id="q-ecran"></div>
+  </div>
+</div>
+
+<!-- Panneau « Vos données » : mention courte, sur le modèle de la CNIL (formulaire de demande de devis).
+     À VALIDER par Benjamin : la base légale, la durée de 3 ans, l'engagement « ni vendues ni transmises ». -->
+<div class="panneau dessus" id="p-donnees" role="dialog" aria-modal="true" aria-label="Vos données" hidden>
+  <div class="p-barre">
+    <button class="p-btn" type="button" data-fermer data-focus>← Retour</button>
+    <span class="p-titre">Vos données</span>
+  </div>
+  <div class="p-defile">
+    <div class="p-corps">
+      <h2 class="q-titre">Vos données</h2>
+      <p class="q-aide">Ce que deviennent les informations que vous laissez dans « Votre projet ».</p>
+      <dl class="donnees">
+        <dt>Qui les recueille</dt>
+        <dd>Moi, Benjamin Huteau, consultant développeur IA, région d'Angers.</dd>
+        <dt>Pourquoi</dt>
+        <dd>Uniquement pour vous recontacter au sujet de votre projet et, si vous le souhaitez, vous préparer un devis. C'est vous qui le demandez : ce sont des démarches avant un éventuel contrat.</dd>
+        <dt>Lesquelles</dt>
+        <dd>Vos réponses au questionnaire, votre prénom, votre téléphone et/ou votre e-mail, votre préférence de contact, la date de l'envoi et l'adresse de la page.</dd>
+        <dt>Où elles sont gardées</dt>
+        <dd>Dans un tableau Google Sheets de mon compte Google. Une alerte arrive aussi dans ma boîte mail. Elles ne sont ni vendues, ni transmises à quelqu'un d'autre.</dd>
+        <dt>Combien de temps</dt>
+        <dd>3 ans au plus après notre dernier échange, si aucun projet ne se fait. Ensuite, je les supprime.</dd>
+        <dt>Vos droits</dt>
+        <dd>Vous pouvez à tout moment demander à voir, corriger ou supprimer vos données : il suffit de répondre au message (appel, SMS ou e-mail) par lequel je vous recontacte. Vous pouvez aussi adresser une réclamation à la CNIL (cnil.fr).</dd>
+      </dl>
+    </div>
+  </div>
 </div>
 
 <div class="fondu" id="fondu" aria-hidden="true"></div>
@@ -356,289 +537,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script defer src="jeu-bureau.js"></script>
-<script>
-var PAGE_URL = "https://bentoto02.github.io/carte/";
-var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-function qr(id, text) {
-  try {
-    new QRCode(document.getElementById(id), {
-      text: text, width: 256, height: 256,
-      colorDark: "#070912", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M
-    });
-  } catch (e) {}
-}
-
-/* La carte de visite est la dernière scène de la page. Ses animations (nom qui se décode,
-   rôle qui s'écrit) se jouent la première fois qu'elle apparaît, qu'on y arrive par le jeu ou en défilant. */
-var carteScene = document.getElementById("carte"), played = false;
-function playCard() { if (!played && !calm) { played = true; decodeName(); typeRole(); } }
-if (window.IntersectionObserver) {
-  new IntersectionObserver(function (en) { if (en[0].isIntersecting) playCard(); }, { threshold: .25 }).observe(carteScene);
-}
-/* Entrée dans le bureau : fondu, puis on se retrouve sur la carte */
-function entrerBureau(apres) {
-  var f = document.getElementById("fondu");
-  function arrive() {
-    carteScene.scrollIntoView({ behavior: "auto", block: "start" });
-    playCard();
-    if (apres) apres();
-  }
-  if (calm) { arrive(); return; }
-  f.classList.add("on");
-  setTimeout(function () { arrive(); setTimeout(function () { f.classList.remove("on"); }, 60); }, 380);
-}
-var rejouer = function () {};
-document.getElementById("rejouer").addEventListener("click", function () {
-  rejouer();
-  document.querySelector(".s-jeu").scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
-});
-
-/* Le parcours des compétences : barre de progression, consigne, flèche ; 3D si possible, sinon 4 cartes */
-var ETAPES_SECOURS = [
-  { titre: "Automatisation", phrase: "Les tâches répétitives se font toutes seules : mails, devis, relances." },
-  { titre: "Agent IA", phrase: "Un assistant qui répond, trie et prépare le travail, 24 h sur 24." },
-  { titre: "CRM", phrase: "Tous vos clients et vos projets au même endroit." },
-  { titre: "Projet numérique", phrase: "Site, logiciel, jeu, outil sur mesure : on le construit ensemble." }
-];
-function startParcours() {
-  var box = document.getElementById("jeu"), scene = document.querySelector(".s-jeu");
-  var phrase = document.getElementById("jeu-phrase"), barre = document.getElementById("jeu-progres");
-  var fleche = document.getElementById("jeu-fleche"), cibleFleche = null, timer = 0;
-
-  function consigne(t) { phrase.textContent = t; }
-  function progres(n) { barre.firstChild.style.width = (n * 20) + "%"; barre.setAttribute("aria-valuenow", n); }
-  /* La flèche : posée sur une cible (fonction qui renvoie {x, y} dans la scène), suivie à chaque image */
-  function montrer(cible, delai, gauche) {   // gauche : la flèche pointe vers la gauche ; sinon elle pointe vers le haut, sous la cible
-    clearTimeout(timer);
-    timer = setTimeout(function () {
-      cibleFleche = cible; fleche.hidden = false; fleche.classList.toggle("gauche", !!gauche); fleche.classList.toggle("haut", !gauche);
-      (function suivre() {
-        if (cibleFleche !== cible) return;
-        var p = cible();
-        if (p) fleche.style.transform = gauche
-          ? "translate(" + Math.round(p.x) + "px," + Math.round(p.y - 28) + "px)"
-          : "translate(" + Math.round(p.x - 24) + "px," + Math.round(p.y + 6) + "px)";
-        requestAnimationFrame(suivre);
-      })();
-    }, delai || 0);
-  }
-  function cacher() { clearTimeout(timer); cibleFleche = null; fleche.hidden = true; }
-
-  /* 1. Le parcours 3D */
-  var ok = null;
-  if (window.THREE && window.JeuBureau && box) {
-    try {
-      ok = JeuBureau.mount(box, {
-        onWalk: function (vers) { cacher(); consigne(vers === 5 ? "On entre…" : "En route…"); },
-        onQueue: function () { consigne("C'est noté : on continue juste après !"); },
-        onStep: function (i) {
-          var n = i + 1;
-          progres(n);
-          consigne(n === 4 ? "Dernier toucher : entrez dans mon bureau !" : "Touchez pour continuer");
-          var e = JeuBureau._etat();
-          if (!(e && e.enAttente)) montrer(JeuBureau.heroScreen, 700);
-        },
-        onArrive: function () {
-          progres(5);
-          entrerBureau(function () { JeuBureau.reset(); depart(); });
-        }
-      });
-    } catch (e) { ok = null; }
-  }
-  function depart() { progres(0); consigne("Touchez le personnage pour avancer"); if (ok) montrer(JeuBureau.heroScreen, 300); }
-  if (ok) { rejouer = function () { JeuBureau.reset(); depart(); }; depart(); return; }
-
-  /* 2. Secours (pas de WebGL, ou Three.js absent) : 4 cartes qui s'allument une par une, puis le bureau */
-  var etapes = (window.JeuBureau && JeuBureau.ETAPES) || ETAPES_SECOURS;
-  var plan = document.createElement("div"); plan.className = "plan"; plan.id = "plan";
-  var cartes = [], faites = 0;
-  etapes.forEach(function (e, i) {
-    var b = document.createElement("button"); b.type = "button"; b.className = "etape";
-    b.innerHTML = "<span></span><small></small>";
-    b.firstChild.textContent = e.titre; b.lastChild.textContent = e.phrase;
-    plan.appendChild(b); cartes.push(b);
-  });
-  var porte = document.createElement("button"); porte.type = "button"; porte.className = "etape bureau";
-  porte.textContent = "Entrer dans mon bureau";
-  plan.appendChild(porte); cartes.push(porte);
-  box.appendChild(plan);
-  function cible(el) {
-    return function () {
-      var a = el.getBoundingClientRect(), s = scene.getBoundingClientRect();
-      return { x: a.right - s.left - 46, y: a.top - s.top + a.height / 2 };
-    };
-  }
-  function etat() {
-    cartes.forEach(function (c, i) {
-      c.classList.toggle("on", i < faites && i < 4);
-      c.classList.toggle("cur", i === faites);
-      c.disabled = i !== faites;
-    });
-    progres(faites);
-    if (faites < 5) montrer(cible(cartes[faites]), 250, true); else cacher();
-    consigne(faites === 0 ? "Touchez la première carte" : faites < 4 ? "Touchez la carte suivante" :
-      faites === 4 ? "Dernier toucher : entrez dans mon bureau !" : "");
-  }
-  cartes.forEach(function (c, i) {
-    c.addEventListener("click", function () {
-      if (i !== faites) return;
-      faites++; etat();
-      if (faites === 5) entrerBureau(function () { faites = 0; etat(); });
-    });
-  });
-  rejouer = function () { faites = 0; etat(); };
-  etat();
-}
-document.addEventListener("DOMContentLoaded", function () {
-  qr("qr-page", PAGE_URL);
-  startParcours();
-});
-
-/* La vidéo démarre seule, sans le son ; relance si le téléphone l'a bloquée */
-(function () {
-  var v = document.getElementById("vid");
-  function go() { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
-  go(); document.addEventListener("touchstart", go, { once: true, passive: true });
-})();
-
-var decodeName = function () {}, typeRole = function () {};
-
-if (!calm) {
-  /* Nom qui se décode */
-  decodeName = function () {
-    var el = document.getElementById("name"), final = el.getAttribute("data-text");
-    var glyphs = "01<>/{}#$%&*+=?ABCDEFXYZ", frame = 0, total = 38;
-    function tick() {
-      var out = "";
-      for (var i = 0; i < final.length; i++) {
-        var reveal = (frame / total) * final.length * 1.4 - i * .4;
-        out += final[i] === " " ? " " : (reveal > 1 ? final[i] : glyphs[(Math.random() * glyphs.length) | 0]);
-      }
-      el.textContent = out;
-      if (++frame <= total) requestAnimationFrame(tick); else el.textContent = final;
-    }
-    setTimeout(tick, 250);
-  };
-
-  /* Rôle qui s'écrit, puis fait défiler les spécialités */
-  typeRole = function () {
-    var el = document.getElementById("type");
-    var words = ["Consultant développeur IA", "Jeux et logiciels", "CRM et automatisations", "Assistants IA sur mesure", "Consultant développeur IA"];
-    var w = 0, c = words[0].length, del = false;
-    function step() {
-      var word = words[w];
-      if (!del) {
-        c++; el.textContent = word.slice(0, c);
-        if (c >= word.length) { if (w === words.length - 1) return; del = true; return setTimeout(step, 1600); }
-      } else {
-        c--; el.textContent = word.slice(0, c);
-        if (c <= 0) { del = false; w++; }
-      }
-      setTimeout(step, del ? 28 : 55);
-    }
-    setTimeout(function () { del = true; step(); }, 2600);
-  };
-
-  /* Toucher l'écran : gerbe d'étincelles et onde de choc */
-  (function () {
-    var cv = document.getElementById("fx"), ctx = cv.getContext("2d");
-    var dpr = Math.min(window.devicePixelRatio || 1, 2), W, H, parts = [], rings = [], running = false;
-    function size() { W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
-    size(); window.addEventListener("resize", size);
-    var cols = ["#3ee6ff", "#7c6cff", "#5dffb5", "#ffffff"];
-    function burst(x, y, byHand) {
-      for (var i = 0; i < 46; i++) {
-        var a = Math.random() * 6.283, s = 1.5 + Math.random() * 6;
-        parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, c: cols[i % 4], r: 1 + Math.random() * 2.4 });
-      }
-      rings.push({ x: x, y: y, r: 4, life: 1 });
-      if (byHand && navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
-      if (!running) { running = true; requestAnimationFrame(loop); }
-    }
-    function loop() {
-      ctx.clearRect(0, 0, W, H);
-      ctx.globalCompositeOperation = "lighter";
-      for (var i = parts.length - 1; i >= 0; i--) {
-        var p = parts[i]; p.x += p.vx; p.y += p.vy; p.vx *= .955; p.vy = p.vy * .955 + .06; p.life -= .018;
-        if (p.life <= 0) { parts.splice(i, 1); continue; }
-        ctx.globalAlpha = p.life; ctx.fillStyle = p.c;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
-      }
-      for (var k = rings.length - 1; k >= 0; k--) {
-        var g = rings[k]; g.r += 7; g.life -= .03;
-        if (g.life <= 0) { rings.splice(k, 1); continue; }
-        ctx.globalAlpha = g.life * .8; ctx.strokeStyle = "#3ee6ff"; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, 6.283); ctx.stroke();
-      }
-      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-      if (parts.length || rings.length) requestAnimationFrame(loop); else running = false;
-    }
-    document.getElementById("show").addEventListener("pointerdown", function (e) { burst(e.clientX, e.clientY, true); });
-  })();
-
-  /* Carte qui s'incline et reflet qui suit le doigt */
-  (function () {
-    var frame = document.getElementById("frame"), card = document.getElementById("card");
-    function move(x, y) {
-      var r = frame.getBoundingClientRect();
-      var px = (x - r.left) / r.width, py = (y - r.top) / r.height;
-      frame.style.transform = "rotateY(" + ((px - .5) * 8) + "deg) rotateX(" + ((.5 - py) * 8) + "deg)";
-      card.style.setProperty("--mx", (px * 100) + "%");
-      card.style.setProperty("--my", (py * 100) + "%");
-    }
-    window.addEventListener("pointermove", function (e) { move(e.clientX, e.clientY); });
-    window.addEventListener("pointerleave", function () { frame.style.transform = ""; });
-  })();
-
-  /* Réseau de neurones en fond */
-  (function () {
-    var cv = document.getElementById("net"), ctx = cv.getContext("2d");
-    var dpr = Math.min(window.devicePixelRatio || 1, 2), W, H, pts = [], mouse = { x: -999, y: -999 };
-    function size() {
-      W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var n = Math.round(Math.min(90, (W * H) / 14000));
-      pts = [];
-      for (var i = 0; i < n; i++) pts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35, p: Math.random() * 6.28 });
-    }
-    window.addEventListener("resize", size);
-    window.addEventListener("pointermove", function (e) { mouse.x = e.clientX; mouse.y = e.clientY; });
-    var pulses = [];
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      var L = 130;
-      for (var i = 0; i < pts.length; i++) {
-        var a = pts[i];
-        a.x += a.vx; a.y += a.vy; a.p += .03;
-        if (a.x < 0 || a.x > W) a.vx *= -1;
-        if (a.y < 0 || a.y > H) a.vy *= -1;
-        var dm = Math.hypot(a.x - mouse.x, a.y - mouse.y);
-        if (dm < 160) { a.x += (a.x - mouse.x) / dm * .6; a.y += (a.y - mouse.y) / dm * .6; }
-        for (var j = i + 1; j < pts.length; j++) {
-          var b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y);
-          if (d < L) {
-            ctx.strokeStyle = "rgba(124,108,255," + (1 - d / L) * .35 + ")";
-            ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-            if (Math.random() < .0008 && pulses.length < 14) pulses.push({ a: a, b: b, t: 0 });
-          }
-        }
-        ctx.fillStyle = "rgba(62,230,255," + (.45 + Math.sin(a.p) * .3) + ")";
-        ctx.beginPath(); ctx.arc(a.x, a.y, 1.6, 0, 6.28); ctx.fill();
-      }
-      /* Impulsions qui voyagent le long des liens */
-      for (var k = pulses.length - 1; k >= 0; k--) {
-        var q = pulses[k]; q.t += .025;
-        if (q.t >= 1) { pulses.splice(k, 1); continue; }
-        var x = q.a.x + (q.b.x - q.a.x) * q.t, y = q.a.y + (q.b.y - q.a.y) * q.t;
-        ctx.fillStyle = "rgba(93,255,181,.9)"; ctx.shadowColor = "#5dffb5"; ctx.shadowBlur = 10;
-        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 6.28); ctx.fill(); ctx.shadowBlur = 0;
-      }
-      requestAnimationFrame(draw);
-    }
-    size(); draw();
-  })();
-}
-</script>
+<script defer src="carte.js"></script>
 
 </body></html>

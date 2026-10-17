@@ -3,7 +3,7 @@
  * API : JeuBureau.mount(conteneur, { onStep(index, titre, phrase), onArrive(), onWalk(vers), onQueue() })
  *       → renvoie l'API, ou null si WebGL manque.
  *       JeuBureau.reset()   JeuBureau.stop()   JeuBureau.heroScreen() → {x, y} des pieds du personnage, en px dans le conteneur
- * Un toucher = une étape. 4 stations, puis la porte du bureau.
+ * Un toucher = une étape. 4 stations (Comprendre, Proposer, Mettre en place, Accompagner), puis la porte du bureau.
  * Un toucher pendant la marche est gardé : le personnage repart 0,8 s après son arrivée.
  */
 (function () {
@@ -11,11 +11,14 @@
 
   var C = { bg: 0x070912, cyan: 0x3ee6ff, indigo: 0x7c6cff, mint: 0x5dffb5 };
   var FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  // Les 4 stations = la méthode de Benjamin (textes : recherche-parcours-client.md, Priorité 2).
+  // « tags » : les compétences, affichées en étiquettes dans la bulle de « Mettre en place ».
   var ETAPES = [
-    { titre: "Automatisation", phrase: "Les tâches répétitives se font toutes seules : mails, devis, relances." },
-    { titre: "Agent IA", phrase: "Un assistant qui répond, trie et prépare le travail, 24 h sur 24." },
-    { titre: "CRM", phrase: "Tous vos clients et vos projets au même endroit." },
-    { titre: "Projet numérique", phrase: "Site, logiciel, jeu, outil sur mesure : on le construit ensemble." }
+    { titre: "Comprendre", phrase: "On commence par un échange : votre métier, vos outils, ce qui vous fait perdre du temps." },
+    { titre: "Proposer", phrase: "Je vous présente une ou deux solutions claires, avec un devis détaillé. Vous choisissez." },
+    { titre: "Mettre en place", phrase: "Je construis, je teste avec vous, et je vous montre comment vous en servir.",
+      tags: ["Automatisation", "Agent IA", "CRM", "Site", "Logiciel", "Jeu", "Outil sur mesure"] },
+    { titre: "Accompagner", phrase: "30 jours d'accompagnement inclus : corrections, réglages et bilan. Au-delà, on décide ensemble." }
   ];
   var CONSIGNE = "Touchez l'écran pour avancer";
   var TOP_FREE = 0.30;      // part de la hauteur laissée au titre de la page
@@ -222,160 +225,239 @@
       return st;
     }
 
-    // 1. Automatisation : tapis, engrenage, colis triés
+    // Texture dessinée sur un canvas (gardée pour être libérée à l'arrêt)
+    function canvasTex(w, h, draw) {
+      var c = document.createElement("canvas"); c.width = w; c.height = h;
+      draw(c.getContext("2d"), w, h);
+      var t = new THREE.CanvasTexture(c); S.disposables.push(t);
+      return t;
+    }
+    function checkMark(g, x, y, s) {   // coche épaisse, centrée en (x, y), taille s
+      g.lineCap = "round"; g.lineJoin = "round"; g.lineWidth = s * 0.16;
+      g.beginPath(); g.moveTo(x - s * 0.32, y + s * 0.02); g.lineTo(x - s * 0.08, y + s * 0.26); g.lineTo(x + s * 0.34, y - s * 0.24); g.stroke();
+    }
+    var checkTex = canvasTex(128, 128, function (g) {
+      g.fillStyle = "#5dffb5"; g.beginPath(); g.arc(64, 64, 60, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = "#061018"; checkMark(g, 64, 64, 96);
+    });
+    // petite bulle de dialogue « … » (plan face à la caméra selon l'axe donné)
+    function talkBubble(parent, x, y, z, faceX) {
+      var grp = new THREE.Group(); grp.position.set(x, y, z); if (faceX) grp.rotation.y = Math.PI / 2; parent.add(grp);
+      var m = litMat(0x2a3058, 0xeef2ff);
+      box(0.6, 0.34, 0.04, m, 0, 0, 0, grp);
+      var tail = box(0.12, 0.12, 0.04, m, -0.16, -0.19, 0, grp); tail.rotation.z = Math.PI / 4;
+      var ds = [];
+      for (var d = 0; d < 3; d++) {
+        var dm = bas(0x3a3f70); ds.push(dm);
+        var dd = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 4), dm); dd.position.set(-0.15 + d * 0.15, 0, 0.04); grp.add(dd);
+      }
+      return { g: grp, mat: m, dots: ds };
+    }
+
+    // 1. Comprendre : un bloc-notes qui se remplit, une loupe qui l'examine, et un échange (deux bulles)
     (function () {
       var st = makeStation(0), g = st.g;
-      box(2.2, 0.14, 0.7, lam(0x1b2140), 0, 0.5, 0, g);
-      box(2.2, 0.02, 0.56, bas(0x262d55), 0, 0.58, 0, g);
-      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (s) { box(0.1, 0.45, 0.1, lam(0x2a3058), s[0] * 1.0, 0.22, s[1] * 0.28, g); });
+      box(1.7, 0.1, 1.1, lam(0x1b2140), 0, 0.72, 0, g);
+      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(function (s) { box(0.08, 0.7, 0.08, lam(0x2a3058), s[0] * 0.75, 0.35, s[1] * 0.45, g); });
       var edge = litMat(0x17414c, C.cyan); st.mats.push(edge);
-      box(2.2, 0.04, 0.04, edge, 0, 0.59, 0.36, g); box(2.2, 0.04, 0.04, edge, 0, 0.59, -0.36, g);
-      var gear = new THREE.Group(); gear.position.set(-1.3, 1.0, 0); g.add(gear);
-      var gm = litMat(0x2b2f6b, C.indigo); st.mats.push(gm);
-      var disc = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.12, 12), gm); disc.rotation.x = Math.PI / 2; gear.add(disc);
-      for (var t = 0; t < 8; t++) {
-        var a = t / 8 * Math.PI * 2, tooth = box(0.13, 0.13, 0.12, gm, Math.cos(a) * 0.36, Math.sin(a) * 0.36, 0, gear);
-        tooth.rotation.z = a;
+      box(1.72, 0.03, 0.03, edge, 0, 0.78, 0.56, g);
+      // bloc-notes à plat
+      box(1.0, 0.03, 0.82, lam(0xf3ecd2), -0.1, 0.785, 0, g);
+      box(1.0, 0.06, 0.1, lam(C.indigo), -0.1, 0.81, -0.37, g);
+      var lineGeo = new THREE.BoxGeometry(0.72, 0.012, 0.04); lineGeo.translate(0.36, 0, 0);
+      var lines = [];
+      for (var l = 0; l < 5; l++) {
+        var lm = new THREE.Mesh(lineGeo, bas(l === 4 ? C.indigo : 0x2b3a8a));
+        lm.position.set(-0.5, 0.806, -0.22 + l * 0.12); lm.scale.x = 0.001; g.add(lm);
+        lm.userData.len = l === 4 ? 0.55 : (l % 2 ? 0.8 : 1);
+        lines.push(lm);
       }
-      var cap = litMat(0x1d4a55, C.cyan); st.mats.push(cap);
-      var capM = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.14, 8), cap); capM.rotation.x = Math.PI / 2; gear.add(capM);
-      box(0.08, 0.5, 0.08, lam(0x2a3058), -1.3, 0.55, 0, g);
-      var b1 = litMat(0x15414a, C.cyan), b2 = litMat(0x14432f, C.mint); st.mats.push(b1, b2);
-      box(0.42, 0.36, 0.34, b1, 1.4, 0.18, 0.21, g); box(0.42, 0.36, 0.34, b2, 1.4, 0.18, -0.21, g);
-      var items = [];
-      for (var k = 0; k < 4; k++) {
-        var it = box(0.32, 0.07, 0.22, lam(k % 2 ? 0xe8ecff : 0xffd98a), -1.0 + k * 0.55, 0.63, 0, g);
-        it.userData.s = k % 2 ? 1 : -1; items.push(it);
-      }
-      shadow(g, 3.2);
+      // loupe
+      var loupe = new THREE.Group(); loupe.position.set(0.15, 1.3, 0.05); g.add(loupe);
+      var tilt = new THREE.Group(); tilt.rotation.x = -0.95; tilt.rotation.z = 0.5; loupe.add(tilt);
+      var ringM = litMat(0x2b2f6b, C.cyan); st.mats.push(ringM);
+      tilt.add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05, 8, 24), ringM));
+      var glassM = new THREE.MeshBasicMaterial({ color: C.cyan, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false });
+      tilt.add(new THREE.Mesh(new THREE.CircleGeometry(0.28, 24), glassM));
+      var handle = box(0.09, 0.5, 0.09, lam(0x8890c0), 0, -0.58, 0, tilt);
+      box(0.12, 0.08, 0.12, ringM, 0, -0.33, 0, tilt);
+      // l'échange : deux bulles qui parlent à tour de rôle
+      var b1 = talkBubble(g, -0.6, 1.95, 0.1), b2 = talkBubble(g, 0.55, 2.3, 0.1);
+      b2.g.scale.x = -1;
+      st.mats.push(b1.mat, b2.mat);
+      shadow(g, 2.6);
       st.update = function (dt, t, running) {
-        if (!running) return;
-        gear.rotation.z -= dt * 2.2;
-        for (var j = 0; j < items.length; j++) {
-          var it = items[j], x = it.position.x + dt * 0.75;
-          if (x > 1.45) { x = -1.05; it.userData.s = -it.userData.s; }
-          it.position.x = x;
-          var f = clamp01((x - 0.7) / 0.5);
-          it.position.z = it.userData.s * 0.21 * ease(f);
-          it.position.y = x > 1.15 ? 0.63 - (x - 1.15) * 1.2 : 0.63;
+        for (var j = 0; j < lines.length; j++) {
+          var f = st.active ? (running ? ease((st.actT - 0.25 - j * 0.28) / 0.3) : 1) : 0;
+          lines[j].scale.x = Math.max(0.001, f * lines[j].userData.len);
         }
+        glassM.opacity = 0.12 + 0.2 * st.k;
+        var who = running ? Math.floor(t * 1.3) % 2 : -1;
+        for (var d = 0; d < 3; d++) {
+          var on1 = st.k > 0.5 && (who === 0 ? Math.floor(t * 4) % 3 === d : who === -1);
+          var on2 = st.k > 0.5 && (who === 1 ? Math.floor(t * 4) % 3 === d : who === -1);
+          b1.dots[d].color.setHex(on1 ? C.indigo : (st.k > 0.5 ? 0xc8ccff : 0x3a3f70));
+          b2.dots[d].color.setHex(on2 ? C.indigo : (st.k > 0.5 ? 0xc8ccff : 0x3a3f70));
+        }
+        if (!running) { loupe.position.set(0.15, 1.3, 0.05); return; }
+        loupe.position.x = 0.0 + Math.sin(t * 1.3) * 0.28;
+        loupe.position.z = 0.05 + Math.cos(t * 1.3) * 0.16;
+        loupe.position.y = 1.3 + Math.sin(t * 2.6) * 0.05;
       };
       stations.push(st);
     })();
 
-    // 2. Agent IA : robot sur socle, anneau holographique, bulle « … »
+    // 2. Proposer : un devis sur un pupitre, deux options qui en sortent, une coche qui hésite entre les deux
     (function () {
       var st = makeStation(1), g = st.g;
-      box(1.1, 0.25, 1.1, lam(0x1b2140), 0, 0.125, 0, g);
-      var ringM = litMat(0x1b2a55, C.cyan, { transparent: true, opacity: 0.9 }); st.mats.push(ringM);
-      var ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.52, 24), ringM); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.26; g.add(ring);
-      var bot = new THREE.Group(); bot.position.y = 0.25; bot.rotation.y = Math.PI / 2; g.add(bot);
-      box(0.46, 0.5, 0.36, lam(C.indigo), 0, 0.3, 0, bot);
-      box(0.5, 0.36, 0.4, lam(0xe8ecff), 0, 0.75, 0, bot);
-      var visor = litMat(0x1d4a55, C.cyan); st.mats.push(visor);
-      box(0.38, 0.1, 0.02, visor, 0, 0.77, 0.21, bot);
-      box(0.04, 0.22, 0.04, lam(0x8890c0), 0, 1.04, 0, bot);
-      var tip = litMat(0x1f4a38, C.mint); st.mats.push(tip);
-      var tipM = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), tip); tipM.position.y = 1.17; bot.add(tipM);
-      var armL = new THREE.Group(), armR = new THREE.Group();
-      armL.position.set(-0.29, 0.5, 0); armR.position.set(0.29, 0.5, 0); bot.add(armL); bot.add(armR);
-      box(0.1, 0.36, 0.12, lam(0x5a4fd0), 0, -0.16, 0, armL); box(0.1, 0.36, 0.12, lam(0x5a4fd0), 0, -0.16, 0, armR);
-      var holoM = new THREE.MeshBasicMaterial({ color: C.cyan, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false });
-      var holo = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.025, 6, 32), holoM); holo.rotation.x = Math.PI / 2; holo.position.y = 1.0; g.add(holo);
-      var talk = new THREE.Group(); talk.position.set(0.15, 1.85, 0.15); g.add(talk);
-      var talkM = litMat(0x2a3058, 0xeef2ff); st.mats.push(talkM);
-      box(0.7, 0.4, 0.04, talkM, 0, 0, 0, talk);
-      var dots = [];
-      for (var d = 0; d < 3; d++) {
-        var dm = bas(0x3a3f70); dots.push(dm);
-        var dd = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 4), dm); dd.position.set(-0.18 + d * 0.18, 0, 0.04); talk.add(dd);
-      }
-      st.talk = talk;
-      shadow(g, 2.2);
-      st.update = function (dt, t, running) {
-        holoM.opacity = 0.1 + 0.75 * st.k;
-        for (var j = 0; j < 3; j++) dots[j].color.setHex(st.k > 0.5 ? ((running ? Math.floor(t * 4) % 3 === j : j === 1) ? C.indigo : 0xc8ccff) : 0x3a3f70);
-        if (!running) return;
-        holo.rotation.z += dt * 1.4;
-        holo.position.y = 1.0 + Math.sin(t * 2) * 0.12;
-        bot.position.y = 0.25 + Math.sin(t * 3) * 0.03;
-        armR.rotation.z = -2.4 + Math.sin(t * 7) * 0.4;
-      };
-      st.onActivateStatic = function () { armR.rotation.z = -2.4; };
-      stations.push(st);
-    })();
-
-    // 3. CRM : mur de fiches clients qui s'allument
-    (function () {
-      var st = makeStation(2), g = st.g;
-      box(2.4, 0.2, 0.5, lam(0x1b2140), 0, 0.1, 0, g);
-      box(2.2, 1.75, 0.18, lam(0x161b36), 0, 1.07, 0, g);
+      box(0.7, 0.1, 1.5, lam(0x1b2140), 0, 0.05, 0, g);
+      box(0.1, 0.9, 0.1, lam(0x2a3058), 0, 0.5, 0, g);
+      box(0.08, 1.5, 1.2, lam(0x161b36), 0, 1.5, 0, g);
       var trim = litMat(0x2b2f6b, C.indigo); st.mats.push(trim);
-      box(2.24, 0.06, 0.22, trim, 0, 1.97, 0, g);
-      var cc = document.createElement("canvas"); cc.width = 128; cc.height = 110;
-      var cg = cc.getContext("2d");
-      cg.fillStyle = "#ffffff"; roundRect(cg, 4, 4, 120, 102, 14); cg.fill();
-      cg.fillStyle = "#3b4170"; cg.beginPath(); cg.arc(34, 40, 18, 0, Math.PI * 2); cg.fill();
-      cg.fillRect(62, 28, 52, 9); cg.fillRect(62, 46, 38, 7); cg.fillRect(16, 72, 96, 7); cg.fillRect(16, 86, 70, 7);
-      var cardTex = new THREE.CanvasTexture(cc); S.disposables.push(cardTex);
-      var cardGeo = new THREE.PlaneGeometry(0.44, 0.38);
-      var cards = [], tints = [C.cyan, C.mint, 0xdcd6ff, C.cyan, 0xffffff, C.mint];
-      for (var r = 0; r < 3; r++) for (var c = 0; c < 4; c++) {
-        var m = litMat(0x262b4d, tints[(r * 4 + c) % tints.length], { map: cardTex });
-        var p = new THREE.Mesh(cardGeo, m); p.position.set(-0.75 + c * 0.5, 1.55 - r * 0.46, 0.095); g.add(p);
-        cards.push(m);
+      box(0.1, 0.05, 1.24, trim, 0, 2.27, 0, g);
+      var docTex = canvasTex(256, 340, function (c, w, h) {
+        c.fillStyle = "#ffffff"; roundRect(c, 4, 4, w - 8, h - 8, 14); c.fill();
+        c.fillStyle = "#1b2140"; c.font = "800 52px " + FONT; c.textAlign = "center"; c.textBaseline = "top";
+        c.fillText("DEVIS", w / 2, 20);
+        c.fillStyle = "#7c6cff"; c.fillRect(40, 84, w - 80, 6);
+        c.fillStyle = "#c3c8dc"; for (var k = 0; k < 3; k++) c.fillRect(30, 112 + k * 24, k === 2 ? 120 : 196, 10);
+        c.lineWidth = 6;
+        c.strokeStyle = "#3ee6ff"; roundRect(c, 26, 196, 94, 108, 12); c.stroke();
+        c.strokeStyle = "#7c6cff"; roundRect(c, 136, 196, 94, 108, 12); c.stroke();
+        c.fillStyle = "#1b2140"; c.font = "800 56px " + FONT; c.textBaseline = "middle";
+        c.fillText("1", 73, 250); c.fillText("2", 183, 250);
+      });
+      var docM = litMat(0x4a4f70, 0xffffff, { map: docTex }); st.mats.push(docM);
+      var doc = new THREE.Mesh(new THREE.PlaneGeometry(1.02, 1.36), docM);
+      doc.rotation.y = Math.PI / 2; doc.position.set(0.045, 1.5, 0); g.add(doc);
+      function optTex(n, col) {
+        return canvasTex(200, 256, function (c, w, h) {
+          c.fillStyle = "#ffffff"; roundRect(c, 4, 4, w - 8, h - 8, 18); c.fill();
+          c.strokeStyle = col; c.lineWidth = 10; roundRect(c, 9, 9, w - 18, h - 18, 14); c.stroke();
+          c.fillStyle = "#1b2140"; c.textAlign = "center"; c.textBaseline = "top";
+          c.font = "700 34px " + FONT; c.fillText("Option", w / 2, 26);
+          c.font = "800 92px " + FONT; c.fillText(n, w / 2, 62);
+          c.fillStyle = "#c3c8dc"; for (var k = 0; k < 3; k++) c.fillRect(34, 172 + k * 22, k === 2 ? 80 : 132, 10);
+        });
       }
-      shadow(g, 3.0);
+      var cards = [], cardGeo = new THREE.PlaneGeometry(0.6, 0.77), checkGeo = new THREE.PlaneGeometry(0.3, 0.3);
+      [["1", "#3ee6ff", 0.42], ["2", "#7c6cff", -0.42]].forEach(function (o) {
+        var m = litMat(0x3a3f60, 0xffffff, { map: optTex(o[0], o[1]) });
+        var p = new THREE.Mesh(cardGeo, m); p.rotation.y = Math.PI / 2; g.add(p);
+        var ck = new THREE.Mesh(checkGeo, new THREE.MeshBasicMaterial({ map: checkTex, transparent: true }));
+        ck.position.set(0.2, 0.3, 0.02); ck.visible = false; p.add(ck);
+        p.userData.from = new THREE.Vector3(0.03, 1.5, o[2] * 0.4);
+        p.userData.to = new THREE.Vector3(0.75, 1.25, o[2] * 1.25);
+        cards.push({ mesh: p, mat: m, check: ck });
+      });
+      shadow(g, 2.4);
       st.update = function (dt, t, running) {
+        var sel = -1;
+        if (st.active && running && st.actT > 1.0) sel = Math.floor((st.actT - 1.0) / 1.1) % 2;
         for (var j = 0; j < cards.length; j++) {
-          var kj = st.active ? (running ? ease((st.actT - j * 0.1) / 0.25) : 1) : 0;
-          var scan = (running && st.actT > 1.6 && Math.floor(t * 3) % cards.length === j) ? 0.35 : 0;
-          cards[j].color.copy(cards[j].userData.dim).lerp(cards[j].userData.lit, kj * (1 - scan));
+          var c = cards[j], f = st.active ? (running ? ease((st.actT - 0.2 - j * 0.2) / 0.5) : 1) : 0;
+          c.mesh.position.copy(c.mesh.userData.from).lerp(c.mesh.userData.to, f);
+          c.mesh.position.y += Math.sin(f * Math.PI) * 0.25;
+          c.mesh.visible = f > 0.01;
+          var lit = st.active ? (sel === -1 ? 1 : (sel === j ? 1 : 0.45)) : 0;
+          c.mat.color.copy(c.mat.userData.dim).lerp(c.mat.userData.lit, lit);
+          c.check.visible = sel === j;
+          if (sel === j) c.mesh.position.x += 0.08;
         }
       };
       stations.push(st);
     })();
 
-    // 4. Projet numérique : écran qui assemble une page
+    // 3. Mettre en place : un petit chantier numérique, un écran qui assemble une page, puis la coche « testé »
     (function () {
-      var st = makeStation(3), g = st.g;
+      var st = makeStation(2), g = st.g;
       box(0.9, 0.08, 0.6, lam(0x1b2140), 0, 0.04, 0, g);
       box(0.14, 0.8, 0.14, lam(0x2a3058), 0, 0.45, 0, g);
-      box(0.12, 1.32, 2.04, lam(0x161b36), 0, 1.45, 0, g);
+      box(2.04, 1.32, 0.12, lam(0x161b36), 0, 1.45, 0, g);
       var scr = litMat(0x0b0f26, 0x121c45); st.mats.push(scr);
-      var sp = new THREE.Mesh(new THREE.PlaneGeometry(1.86, 1.16), scr); sp.rotation.y = Math.PI / 2; sp.position.set(0.065, 1.45, 0); g.add(sp);
+      var sp = new THREE.Mesh(new THREE.PlaneGeometry(1.86, 1.16), scr); sp.position.set(0, 1.45, 0.065); g.add(sp);
       var frame = litMat(0x2b2f6b, C.cyan); st.mats.push(frame);
-      box(0.02, 0.04, 2.04, frame, 0.07, 2.12, 0, g);
-      // pièces : [largeur(z), hauteur(y), y, z, couleur]
+      box(2.04, 0.04, 0.02, frame, 0, 2.12, 0.07, g);
+      // pièces : [largeur(x), hauteur(y), y, x, couleur]
       var spec = [
         [1.7, 0.16, 1.88, 0, C.indigo],
-        [0.8, 0.5, 1.5, 0.42, C.cyan],
-        [0.66, 0.07, 1.68, -0.4, 0xdfe4ff], [0.66, 0.07, 1.56, -0.4, 0xdfe4ff], [0.5, 0.07, 1.44, -0.48, 0xdfe4ff],
-        [0.34, 0.13, 1.2, -0.25, C.mint], [0.34, 0.13, 1.2, -0.65, C.indigo],
+        [0.8, 0.5, 1.5, -0.42, C.cyan],
+        [0.66, 0.07, 1.68, 0.4, 0xdfe4ff], [0.66, 0.07, 1.56, 0.4, 0xdfe4ff], [0.5, 0.07, 1.44, 0.48, 0xdfe4ff],
+        [0.34, 0.13, 1.2, 0.25, C.mint], [0.34, 0.13, 1.2, 0.65, C.indigo],
         [1.7, 0.07, 1.0, 0, 0x3a4380]
       ];
       var pieces = [];
       for (var k = 0; k < spec.length; k++) {
         var s = spec[k];
-        var m = box(0.03, s[1], s[0], bas(s[4]), 0, 0, 0, g);
+        var m = box(s[0], s[1], 0.03, bas(s[4]), 0, 0, 0, g);
         var a = k / spec.length * Math.PI * 2;
-        m.userData.from = new THREE.Vector3(0.6 + Math.cos(a) * 0.45, 0.05 + (k % 3) * 0.05, Math.sin(a) * 1.1);
-        m.userData.fromR = new THREE.Euler(0, 0, Math.PI / 2);
-        m.userData.to = new THREE.Vector3(0.09, s[2], s[3]);
+        m.userData.from = new THREE.Vector3(Math.sin(a) * 1.1, 0.05 + (k % 3) * 0.05, 0.6 + Math.cos(a) * 0.45);
+        m.userData.to = new THREE.Vector3(s[3], s[2], 0.09);
         pieces.push(m);
       }
-      function place(p) {
+      var ok = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42), new THREE.MeshBasicMaterial({ map: checkTex, transparent: true }));
+      ok.position.set(0.82, 2.1, 0.14); g.add(ok);
+      // plots de chantier
+      var coneM = lam(0xff9a3c), stripe = lam(0xf4f6ff);
+      [[-1.25, 0.55], [1.3, 0.5], [-0.95, 0.85]].forEach(function (c) {
+        var cn = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.36, 10), coneM); cn.position.set(c[0], 0.2, c[1]); g.add(cn);
+        var bd = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.09, 0.06, 10), stripe); bd.position.set(c[0], 0.2, c[1]); g.add(bd);
+        box(0.3, 0.03, 0.3, coneM, c[0], 0.015, c[1], g);
+      });
+      function place(final) {
         for (var j = 0; j < pieces.length; j++) {
-          var pc = pieces[j], f = ease(p === 1 ? 1 : (st.actT - j * 0.12) / 0.55);
+          var pc = pieces[j], f = ease(final ? 1 : (st.actT - j * 0.12) / 0.55);
           if (!st.active) f = 0;
           pc.position.copy(pc.userData.from).lerp(pc.userData.to, f);
           pc.position.y += Math.sin(f * Math.PI) * 0.6;
-          pc.rotation.z = (1 - f) * Math.PI / 2;
+          pc.rotation.x = -(1 - f) * Math.PI / 2;
         }
+        var fo = st.active ? (final ? 1 : easeBack((st.actT - 1.5) / 0.35)) : 0;
+        ok.visible = fo > 0.01; ok.scale.setScalar(Math.max(0.001, fo));
       }
-      place(0);
+      place(false);
       shadow(g, 2.6);
-      st.update = function (dt, t, running) { place(running ? 0 : 1); };
+      st.update = function (dt, t, running) { place(!running); };
+      stations.push(st);
+    })();
+
+    // 4. Accompagner : un calendrier de 30 jours qui se coche, jour après jour
+    (function () {
+      var st = makeStation(3), g = st.g;
+      box(0.5, 0.2, 2.3, lam(0x1b2140), 0, 0.1, 0, g);
+      box(0.12, 1.8, 2.12, lam(0x161b36), 0, 1.1, 0, g);
+      var trim = litMat(0x2b2f6b, C.mint); st.mats.push(trim);
+      box(0.14, 0.06, 2.16, trim, 0, 2.02, 0, g);
+      // anneaux du calendrier
+      for (var r = 0; r < 4; r++) box(0.06, 0.16, 0.06, lam(0x8890c0), 0.07, 2.04, -0.75 + r * 0.5, g);
+      var headTex = canvasTex(512, 96, function (c, w, h) {
+        c.fillStyle = "#ffffff"; roundRect(c, 2, 2, w - 4, h - 4, 18); c.fill();
+        c.fillStyle = "#1b2140"; c.font = "800 62px " + FONT; c.textAlign = "center"; c.textBaseline = "middle";
+        c.fillText("30 jours", w / 2, h / 2 + 3);
+      });
+      var headM = litMat(0x3a3f60, 0xffffff, { map: headTex }); st.mats.push(headM);
+      var head = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.36), headM);
+      head.rotation.y = Math.PI / 2; head.position.set(0.065, 1.74, 0); g.add(head);
+      var dayTex = canvasTex(96, 80, function (c, w, h) {
+        c.fillStyle = "#ffffff"; roundRect(c, 3, 3, w - 6, h - 6, 12); c.fill();
+        c.strokeStyle = "#0b3a28"; checkMark(c, w / 2, h / 2, 56);
+      });
+      var days = [], dayGeo = new THREE.PlaneGeometry(0.27, 0.215);
+      for (var row = 0; row < 5; row++) for (var col = 0; col < 6; col++) {
+        var j = row * 6 + col;
+        var m = litMat(0x262b4d, j === 29 ? C.cyan : C.mint, { map: dayTex });
+        var p = new THREE.Mesh(dayGeo, m); p.rotation.y = Math.PI / 2;
+        p.position.set(0.065, 1.42 - row * 0.255, 0.8 - col * 0.32); g.add(p);
+        days.push(m);
+      }
+      shadow(g, 2.4);
+      st.update = function (dt, t, running) {
+        for (var j = 0; j < days.length; j++) {
+          var kj = st.active ? (running ? ease((st.actT - 0.3 - j * 0.07) / 0.15) : 1) : 0;
+          var glow = (running && st.actT > 2.7 && j === 29) ? 0.25 * (1 + Math.sin(t * 5)) : 0;
+          days[j].color.copy(days[j].userData.dim).lerp(days[j].userData.lit, Math.min(1, kj) * (1 - glow * 0.5));
+        }
+      };
       stations.push(st);
     })();
 
@@ -421,7 +503,9 @@
       var lg = g.createLinearGradient(200, 0, 824, 0); lg.addColorStop(0, "#3ee6ff"); lg.addColorStop(1, "#7c6cff");
       g.fillStyle = lg; g.fillRect(200, 236, 624, 6);
       g.shadowColor = "#5dffb5"; g.shadowBlur = 16; g.fillStyle = "#5dffb5";
-      g.font = "700 88px " + FONT; g.fillText("Consultant IA", 512, 310);
+      var fs2 = 88; g.font = "700 " + fs2 + "px " + FONT;
+      while (g.measureText("Consultant développeur IA").width > 920 && fs2 > 40) { fs2 -= 4; g.font = "700 " + fs2 + "px " + FONT; }
+      g.fillText("Consultant développeur IA", 512, 310);
       return new THREE.CanvasTexture(c);
     })();
     S.disposables.push(signTex);
@@ -471,13 +555,27 @@
     function drawBubble(i) {
       var e = ETAPES[i], g = bubbleCanvas.getContext("2d"), W = 1024, pad = 56;
       g.font = "500 56px " + FONT;
-      var words = e.phrase.split(" "), lines = [], cur = "";
+      // espace insécable devant « : ; ! ? » : la ponctuation ne part jamais seule à la ligne
+      var words = e.phrase.replace(/ ([:;!?])/g, " $1").split(" "), lines = [], cur = "";
       for (var w = 0; w < words.length; w++) {
         var test = cur ? cur + " " + words[w] : words[w];
         if (g.measureText(test).width > W - pad * 2 && cur) { lines.push(cur); cur = words[w]; } else cur = test;
       }
       if (cur) lines.push(cur);
-      var H = pad + 84 + 22 + lines.length * 70 + pad * 0.8 + 44;
+      // étiquettes (compétences) : rangées de pastilles sous la phrase
+      var TAG_F = "700 46px " + FONT, TAG_H = 66, TAG_GAP = 14, TAG_PAD = 24, rows = [];
+      if (e.tags) {
+        g.font = TAG_F;
+        var row = [], rw = 0;
+        for (var tg = 0; tg < e.tags.length; tg++) {
+          var tw = g.measureText(e.tags[tg]).width + TAG_PAD * 2;
+          if (row.length && rw + TAG_GAP + tw > W - pad * 2) { rows.push(row); row = []; rw = 0; }
+          row.push({ t: e.tags[tg], w: tw }); rw += (row.length > 1 ? TAG_GAP : 0) + tw;
+        }
+        if (row.length) rows.push(row);
+      }
+      var tagsH = rows.length ? 26 + rows.length * (TAG_H + TAG_GAP) - TAG_GAP : 0;
+      var H = pad + 84 + 22 + lines.length * 70 + tagsH + pad * 0.8 + 44;
       bubbleCanvas.height = Math.ceil(H);
       g = bubbleCanvas.getContext("2d");
       var bodyH = H - 44;
@@ -490,6 +588,19 @@
       g.fillStyle = i % 2 ? "#a99dff" : "#3ee6ff"; g.font = "800 84px " + FONT; g.fillText(e.titre, pad, pad - 6);
       g.textAlign = "left"; g.fillStyle = "#eef2ff"; g.font = "500 56px " + FONT;
       for (var l = 0; l < lines.length; l++) g.fillText(lines[l], pad, pad + 84 + 22 + l * 70);
+      var ty = pad + 84 + 22 + lines.length * 70 + 26;
+      g.font = TAG_F; g.textBaseline = "middle";
+      for (var rr = 0; rr < rows.length; rr++) {
+        var tx = pad;
+        for (var ti = 0; ti < rows[rr].length; ti++) {
+          var tag = rows[rr][ti];
+          g.fillStyle = "rgba(62,230,255,0.14)"; roundRect(g, tx, ty, tag.w, TAG_H, TAG_H / 2); g.fill();
+          g.strokeStyle = "rgba(62,230,255,0.7)"; g.lineWidth = 3; roundRect(g, tx, ty, tag.w, TAG_H, TAG_H / 2); g.stroke();
+          g.fillStyle = "#eef2ff"; g.fillText(tag.t, tx + TAG_PAD, ty + TAG_H / 2 + 2);
+          tx += tag.w + TAG_GAP;
+        }
+        ty += TAG_H + TAG_GAP;
+      }
       bubbleTex.needsUpdate = true;
       S.bubbleAspect = H / W;
     }
@@ -669,6 +780,9 @@
         var sc = rm ? 1 : 0.6 + 0.4 * easeBack(G.bubbleT / 0.35);
         var bw = Math.min(7.0, S.visW * 0.92);
         bubble.scale.set(bw * sc, bw * S.bubbleAspect * sc, 1);
+        // une bulle plus haute (étiquettes) grandit vers le haut, pour ne pas cacher la station
+        var grow = Math.max(0, S.bubbleAspect - 0.45) * bw * sc;
+        bubble.position.y = 3.6 + (grow > 0 ? (grow / 2 + 0.5) / 0.816 : 0);
         bubble.quaternion.copy(cam.quaternion);
       }
       // indices
