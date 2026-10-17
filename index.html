@@ -1,0 +1,564 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="Benjamin Huteau, consultant développeur IA : jeu, logiciel, CRM, automatisation, assistant IA. Tarif sur devis."><meta name="theme-color" content="#070912"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>Benjamin Huteau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : réseau de neurones animé en fond + aurore, carte en verre au bord lumineux tournant,
+   qui s'incline sous le doigt ; nom qui se décode, rôle qui s'écrit, QR codes scannés en boucle.
+   Look sombre assumé (une seule apparence), toutes les couleurs posées explicitement. */
+:root {
+  --bg: #070912;
+  --bg-2: #0d1122;
+  --glass: rgba(16, 21, 40, .72);
+  --fg: #eef2ff;
+  --muted: #94a0c2;
+  --line: rgba(148, 160, 210, .18);
+  --cyan: #3ee6ff;
+  --indigo: #7c6cff;
+  --mint: #5dffb5;
+  --f-display: "Syne", "Segoe UI", system-ui, sans-serif;
+  --f-body: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.55;
+  overflow-x: hidden; position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Le spectacle : 3 scènes plein écran qui s'enclenchent au défilement */
+html { scroll-snap-type: y mandatory; }
+.show { position: relative; z-index: 1; }
+.scene {
+  position: relative; height: 100svh; min-height: 520px; overflow: hidden;
+  scroll-snap-align: start; display: flex; align-items: flex-end;
+}
+.scene video, .scene canvas#iso { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,9,18,0) 35%, rgba(7,9,18,.85) 82%, var(--bg)); pointer-events: none; }
+.say {
+  position: relative; z-index: 2; padding: 0 22px 118px; display: flex; flex-direction: column; gap: 10px;
+  animation: up .9s cubic-bezier(.2,.8,.2,1) both .3s;
+}
+.say.mid { margin-block: auto; padding-bottom: 60px; }
+@keyframes up { from { transform: translateY(24px); opacity: .3; } }
+.tag { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
+.big {
+  margin: 0; font-family: var(--f-display); font-weight: 800; font-size: clamp(34px, 10.5vw, 52px); line-height: 1.02;
+  letter-spacing: -.015em; text-wrap: balance;
+  background: linear-gradient(100deg, var(--fg) 30%, var(--cyan) 50%, var(--fg) 70%); background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 5s ease-in-out 1.5s infinite;
+}
+.big.long { font-size: clamp(22px, 6.3vw, 36px); }
+.say { max-width: 100%; min-width: 0; }
+.big { overflow-wrap: break-word; }
+.small { margin: 0; color: #d0d7ee; font-size: 16px; max-width: 32ch; }
+.hint { font-family: var(--f-mono); font-size: 12px; color: var(--muted); animation: bob 1.6s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(5px); } }
+.jeu { position: absolute; inset: 0; }
+.say.top { position: absolute; top: 0; left: 0; right: 0; padding: calc(28px + env(safe-area-inset-top, 0px)) 22px 0; pointer-events: none; }
+.s-touch { background: radial-gradient(120% 70% at 50% 40%, rgba(124,108,255,.18), transparent 70%); touch-action: manipulation; }
+
+/* Bouton fixe en bas */
+.cta-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, transparent, rgba(7,9,18,.9) 45%);
+}
+.cta {
+  position: relative; overflow: hidden; width: 100%; max-width: 430px; display: block; margin: 0 auto;
+  min-height: 56px; border: 0; border-radius: 16px; cursor: pointer;
+  font: 700 17px var(--f-body); color: #061018; letter-spacing: .01em;
+  background: linear-gradient(100deg, var(--cyan), var(--mint));
+  box-shadow: 0 0 0 0 rgba(62,230,255,.5), 0 12px 30px -10px rgba(62,230,255,.6);
+  animation: glow 2.4s ease-out infinite;
+}
+.cta::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); transform: skewX(-20deg); animation: shine 3.2s ease-in-out infinite 1s; }
+.cta:active { transform: scale(.97); }
+@keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(62,230,255,.45), 0 12px 30px -10px rgba(62,230,255,.6); } 70%, 100% { box-shadow: 0 0 0 14px rgba(62,230,255,0), 0 12px 30px -10px rgba(62,230,255,.6); } }
+
+/* La carte de contact, qui monte par-dessus */
+.sheet {
+  position: fixed; inset: 0; z-index: 10; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: rgba(5,7,14,.78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  padding-inline: 14px; padding-block: calc(56px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-bottom, 0px));
+  animation: fade .35s ease both;
+}
+@keyframes fade { from { opacity: 0; } }
+.close {
+  position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 11;
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--glass);
+  color: var(--fg); font-size: 16px; cursor: pointer;
+}
+body.locked { overflow: hidden; }
+#net { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.aurora { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(70px); opacity: .55; }
+.aurora i { position: absolute; border-radius: 50%; mix-blend-mode: screen; }
+.aurora i:nth-child(1) { width: 46vmax; height: 46vmax; left: 5%; top: 0; background: radial-gradient(circle, var(--indigo), transparent 65%); animation: drift1 18s ease-in-out infinite alternate; }
+.aurora i:nth-child(2) { width: 40vmax; height: 40vmax; right: 0; top: 30%; background: radial-gradient(circle, var(--cyan), transparent 65%); opacity: .6; animation: drift2 22s ease-in-out infinite alternate; }
+.aurora i:nth-child(3) { width: 30vmax; height: 30vmax; left: 30%; bottom: 0; background: radial-gradient(circle, var(--mint), transparent 65%); opacity: .3; animation: drift1 26s ease-in-out infinite alternate-reverse; }
+@keyframes drift1 { to { transform: translate(12vmax, 8vmax) scale(1.15); } }
+@keyframes drift2 { to { transform: translate(-14vmax, -6vmax) scale(.9); } }
+
+.stage { position: relative; z-index: 1; width: 100%; max-width: 430px; margin: 0 auto; perspective: 900px; }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 3; pointer-events: none; }
+
+/* Bord lumineux qui tourne autour de la carte */
+@property --a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.frame {
+  position: relative; border-radius: 24px; padding: 1.5px;
+  background: conic-gradient(from var(--a), transparent 0 55%, var(--cyan) 70%, var(--indigo) 85%, transparent 100%), var(--line);
+  animation: spin 6s linear infinite, rise .9s cubic-bezier(.2,.8,.2,1) both;
+  transform-style: preserve-3d; transition: transform .25s ease-out;
+  box-shadow: 0 30px 80px -30px rgba(62, 230, 255, .35), 0 0 0 1px rgba(255,255,255,.02);
+}
+@keyframes spin { to { --a: 360deg; } }
+@keyframes rise { from { transform: translateY(26px) rotateX(10deg); opacity: .4; } }
+.card {
+  position: relative; border-radius: 23px; overflow: hidden;
+  background: var(--glass); backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+  padding: 26px 20px 20px; display: flex; flex-direction: column; gap: 18px;
+}
+/* Reflet qui suit le doigt */
+.card::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(420px circle at var(--mx, 70%) var(--my, 0%), rgba(124, 108, 255, .22), transparent 45%);
+}
+/* Grille technique en filigrane */
+.card::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .35;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(180deg, #000 0, transparent 38%); -webkit-mask-image: linear-gradient(180deg, #000 0, transparent 38%);
+}
+.card > * { position: relative; z-index: 1; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); letter-spacing: .06em; }
+.status { display: inline-flex; align-items: center; gap: 7px; color: var(--mint); }
+.status i { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 0 rgba(93,255,181,.6); animation: ping 2s infinite; }
+@keyframes ping { 70% { box-shadow: 0 0 0 9px rgba(93,255,181,0); } 100% { box-shadow: 0 0 0 0 rgba(93,255,181,0); } }
+
+.head { display: flex; flex-direction: column; gap: 8px; }
+h1 {
+  font-family: var(--f-display); font-weight: 800; font-size: clamp(36px, 10vw, 48px);
+  line-height: 1; margin: 0; letter-spacing: -.015em; text-wrap: balance;
+  background: linear-gradient(100deg, var(--fg) 0%, var(--fg) 40%, var(--cyan) 50%, var(--fg) 60%, var(--fg) 100%);
+  background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: sheen 5s ease-in-out 1.6s infinite;
+}
+@keyframes sheen { 0% { background-position: 100% 0; } 40%, 100% { background-position: 0 0; } }
+.role { font-family: var(--f-mono); font-size: 14px; color: var(--cyan); min-height: 1.5em; }
+.role .caret { display: inline-block; width: .55em; height: 1.05em; vertical-align: -2px; background: var(--cyan); margin-left: 2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.bio { margin: 0; max-width: 60ch; color: #d8def3; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.chips li {
+  font-size: 13.5px; padding: 5px 12px; border-radius: 99px;
+  border: 1px solid var(--line); background: rgba(124, 108, 255, .08);
+  animation: pop .55s cubic-bezier(.2,1.4,.4,1) both; animation-delay: calc(.9s + var(--i) * 70ms);
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.chips li:hover { border-color: var(--cyan); transform: translateY(-2px); box-shadow: 0 6px 18px -8px var(--cyan); }
+@keyframes pop { from { transform: scale(.6); opacity: .2; } }
+
+.price {
+  display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px;
+  background: linear-gradient(90deg, rgba(62,230,255,.10), rgba(124,108,255,.06)); border: 1px solid var(--line);
+  font-size: 14.5px;
+}
+.price b { font-family: var(--f-mono); font-weight: 500; color: var(--cyan); white-space: nowrap; }
+.price span { color: var(--muted); }
+
+.rows { display: flex; flex-direction: column; gap: 8px; }
+.row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; min-height: 54px;
+  border: 1px solid var(--line); border-radius: 13px; background: rgba(7, 9, 18, .35);
+  animation: slide .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(1.3s + var(--i) * 90ms);
+  transition: border-color .2s, background .2s;
+}
+.row:hover { border-color: rgba(62,230,255,.5); background: rgba(62,230,255,.05); }
+@keyframes slide { from { transform: translateX(-18px); opacity: .2; } }
+.row .k { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); width: 82px; flex: none; }
+.row .v { font-family: var(--f-mono); font-size: 14px; min-width: 0; flex: 1; overflow-wrap: anywhere; color: var(--fg); text-decoration: none; }
+.row a.v:hover { color: var(--cyan); }
+a.row { text-decoration: none; color: var(--fg); }
+a.row:active { transform: scale(.98); }
+.row .arrow { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: rgba(124,108,255,.16); border: 1px solid rgba(124,108,255,.45); color: var(--cyan); font-size: 16px; }
+.save {
+  position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; padding: 14px;
+  border-radius: 15px; text-decoration: none; color: #061018;
+  background: linear-gradient(100deg, var(--cyan), var(--mint));
+  box-shadow: 0 12px 30px -12px rgba(62,230,255,.7);
+  animation: slide .6s cubic-bezier(.2,.8,.2,1) both 1.3s;
+}
+.save::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-20deg); animation: shine 3.4s ease-in-out infinite 2s; }
+.save:active { transform: scale(.98); }
+.save-ico { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: rgba(6,16,24,.14); font: 700 24px var(--f-body); }
+.save-txt { display: flex; flex-direction: column; font-size: 13px; line-height: 1.3; }
+.save-txt strong { font-size: 16px; }
+.btn {
+  position: relative; overflow: hidden; flex: none; font: 500 12.5px var(--f-body); color: var(--fg);
+  background: rgba(124,108,255,.16); border: 1px solid rgba(124,108,255,.45); border-radius: 9px;
+  padding: 0 13px; min-height: 38px; display: inline-flex; align-items: center;
+  cursor: pointer; text-decoration: none; transition: transform .15s, background .2s;
+}
+.btn::after {
+  content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: skewX(-20deg);
+  animation: shine 4s ease-in-out infinite; animation-delay: calc(2s + var(--i, 0) * .4s);
+}
+@keyframes shine { 0%, 70% { left: -60%; } 100% { left: 130%; } }
+.btn:hover { background: rgba(124,108,255,.3); }
+.btn:active { transform: scale(.94); }
+.btn.ok { background: rgba(93,255,181,.18); border-color: var(--mint); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+.qrs { display: flex; }
+.qr {
+  flex: 1; display: flex; flex-direction: row; align-items: center; gap: 14px; text-align: left;
+  padding: 14px 10px 12px; border-radius: 16px; border: 1px solid var(--line); background: rgba(7,9,18,.4);
+}
+.code { position: relative; background: #ffffff; padding: 8px; border-radius: 10px; line-height: 0; overflow: hidden; }
+.code { flex: none; }
+.code img, .code canvas { width: 104px; height: 104px; }
+/* Coins de visée */
+.code b { position: absolute; width: 16px; height: 16px; border: 2px solid var(--cyan); z-index: 2; }
+.code b:nth-of-type(1) { top: 3px; left: 3px; border-right: 0; border-bottom: 0; }
+.code b:nth-of-type(2) { top: 3px; right: 3px; border-left: 0; border-bottom: 0; }
+.code b:nth-of-type(3) { bottom: 3px; left: 3px; border-right: 0; border-top: 0; }
+.code b:nth-of-type(4) { bottom: 3px; right: 3px; border-left: 0; border-top: 0; }
+/* Ligne de scan */
+.code::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 26px; top: -26px; z-index: 1;
+  background: linear-gradient(180deg, transparent, rgba(62,230,255,.55) 85%, var(--cyan));
+  animation: scan 2.6s cubic-bezier(.5,0,.5,1) infinite; animation-delay: var(--d, 0s);
+}
+@keyframes scan { 0% { top: -26px; } 60%, 100% { top: 100%; } }
+.qr p { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.qr p strong { color: var(--fg); display: block; font-weight: 700; font-size: 13.5px; }
+
+.foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-family: var(--f-mono); font-size: 11px; color: var(--muted); margin: 0; }
+.foot .sig { color: var(--indigo); }
+
+@media (max-width: 380px) {
+  .row .k { width: 64px; font-size: 10px; }
+  .row .v { font-size: 13px; }
+}
+/* Grand écran : la carte reste au format téléphone, au centre */
+@media (min-width: 700px) { body { padding-block: 40px; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  #net { display: none; }
+}
+</style>
+
+<canvas id="net" aria-hidden="true"></canvas>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<div class="show" id="show">
+  <section class="scene s-video" aria-label="L'IA en action">
+    <video id="vid" autoplay muted loop playsinline preload="auto" poster="waouh-poster.jpg">
+      <source src="waouh-web.webm" type="video/webm">
+      <source src="waouh-web.mp4" type="video/mp4">
+    </video>
+    <div class="veil"></div>
+    <div class="say">
+      <span class="tag">01 · Présentation</span>
+      <h2 class="big">Bonjour, je suis Benjamin Huteau.</h2>
+      <p class="small">Consultant développeur IA. Je donne vie à vos idées grâce à l'intelligence artificielle.</p>
+      <span class="hint">Faites défiler ↓</span>
+    </div>
+  </section>
+
+  <section class="scene s-iso" aria-label="L'atelier numérique">
+    <canvas id="iso" aria-hidden="true"></canvas>
+    <div class="veil"></div>
+    <div class="say">
+      <span class="tag">02 · Mon atelier</span>
+      <h2 class="big long">Jeu, logiciel, CRM, automatisation…</h2>
+      <p class="small">J'accompagne chacun dans son projet numérique, quel qu'il soit.</p>
+    </div>
+  </section>
+
+  <section class="scene s-jeu" aria-label="Mini-jeu : entrez dans mon bureau">
+    <div id="jeu" class="jeu"></div>
+    <div class="say top">
+      <span class="tag" id="jeu-tag">03 · Mes compétences</span>
+      <h2 class="big long" id="jeu-titre">Faites le tour en 4 étapes.</h2>
+      <p class="small" id="jeu-phrase">Touchez l'écran pour avancer.</p>
+    </div>
+  </section>
+
+  <section class="scene s-touch" id="touch" aria-label="Touchez l'écran">
+    <div class="say mid">
+      <span class="tag">04 · À vous</span>
+      <h2 class="big">Et votre projet&nbsp;?</h2>
+      <p class="small">Chaque projet est sur mesure. Tarif sur devis, selon sa complexité. Touchez l'écran, puis prenons contact.</p>
+    </div>
+  </section>
+</div>
+
+<div class="cta-bar"><button class="cta" id="open" type="button">Prendre contact</button></div>
+
+<div class="sheet" id="sheet" hidden>
+<button class="close" id="close" type="button" aria-label="Fermer">✕</button>
+<div class="stage">
+  <div class="frame" id="frame">
+    <main class="card" id="card">
+      <div class="top">
+        <span class="status"><i></i>Disponible pour vos projets</span>
+        <span>v.2026</span>
+      </div>
+
+      <header class="head">
+        <h1 id="name" data-text="Benjamin Huteau">Benjamin Huteau</h1>
+        <div class="role" aria-label="Consultant développeur IA"><span id="type">Consultant développeur IA</span><span class="caret"></span></div>
+      </header>
+
+      <p class="bio">J'accompagne chacun dans son projet numérique, quel qu'il soit. Vous avez une idée ou un besoin ? On le construit ensemble.</p>
+
+      <ul class="chips" aria-label="Exemples de projets">
+        <li style="--i:0">Jeu</li><li style="--i:1">Logiciel</li><li style="--i:2">CRM</li><li style="--i:3">Site internet</li>
+        <li style="--i:4">Automatisation</li><li style="--i:5">Assistant IA</li><li style="--i:6">Réseaux sociaux</li><li style="--i:7">Outil sur mesure</li>
+      </ul>
+
+      <div class="price"><b>Sur devis</b><span>selon votre projet et sa complexité</span></div>
+
+      <section class="rows" aria-label="Coordonnées">
+        <a class="save" href="benjamin-huteau.vcf" target="_blank" rel="noopener">
+          <span class="save-ico" aria-hidden="true">+</span>
+          <span class="save-txt"><strong>Enregistrer le contact</strong>Téléphone et mail dans votre répertoire</span>
+        </a>
+        <a class="row link" href="https://www.instagram.com/__bento___/" target="_blank" rel="noopener" style="--i:1">
+          <span class="k">Instagram</span>
+          <span class="v">@__bento___</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="row link" href="https://www.linkedin.com/in/benjamin-huteau-75796a1b1" target="_blank" rel="noopener" style="--i:2">
+          <span class="k">LinkedIn</span>
+          <span class="v">Benjamin Huteau</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      </section>
+
+      <section class="qrs" aria-label="Partager la carte">
+        <div class="qr">
+          <div class="code" id="qr-page"><b></b><b></b><b></b><b></b></div>
+          <p><strong>Partagez cette carte</strong>Montrez ce code : on le scanne, la carte s'ouvre.</p>
+        </div>
+      </section>
+
+      <p class="foot"><span>Région d'Angers · à distance partout en France</span><span class="sig">&lt;/&gt; fait avec l'IA</span></p>
+    </main>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="intro-iso.js"></script>
+<script>
+var PAGE_URL = "https://bentoto02.github.io/carte/";
+var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function qr(id, text) {
+  try {
+    new QRCode(document.getElementById(id), {
+      text: text, width: 256, height: 256,
+      colorDark: "#070912", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch (e) {}
+}
+qr("qr-page", PAGE_URL);
+
+
+/* Ouvrir / fermer la carte de contact */
+var sheet = document.getElementById("sheet"), played = false;
+function openCard() {
+  sheet.hidden = false; document.body.classList.add("locked"); sheet.scrollTop = 0;
+  if (!played && !calm) { played = true; decodeName(); typeRole(); }
+}
+document.getElementById("open").addEventListener("click", openCard);
+
+/* Le mini-jeu 3D (Three.js + jeu-bureau.js) : quand le personnage entre, la carte s'ouvre */
+(function () {
+  var box = document.getElementById("jeu");
+  if (window.THREE && window.JeuBureau && box) {
+    var tag = document.getElementById("jeu-tag"), titre = document.getElementById("jeu-titre"), phrase = document.getElementById("jeu-phrase");
+    try {
+      JeuBureau.mount(box, {
+        onStep: function (i, t, p) { tag.textContent = "03 · Compétence " + (i + 1) + " / 4"; titre.textContent = t; phrase.textContent = p; },
+        onArrive: function () {
+          tag.textContent = "03 · Mes compétences"; titre.textContent = "Bienvenue dans mon bureau."; phrase.textContent = "Touchez l'écran pour recommencer.";
+          setTimeout(openCard, 900);
+        }
+      });
+    } catch (e) {}
+  }
+})();
+document.getElementById("close").addEventListener("click", function () {
+  sheet.hidden = true; document.body.classList.remove("locked");
+});
+
+/* La vidéo démarre seule, sans le son ; relance si le téléphone l'a bloquée */
+(function () {
+  var v = document.getElementById("vid");
+  function go() { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+  go(); document.addEventListener("touchstart", go, { once: true, passive: true });
+})();
+
+/* L'atelier isométrique (dessiné en code, fichier intro-iso.js) */
+(function () {
+  var cv = document.getElementById("iso");
+  if (window.IntroIso && cv) { try { IntroIso.mount(cv); } catch (e) {} }
+})();
+
+var decodeName = function () {}, typeRole = function () {};
+
+if (!calm) {
+  /* Nom qui se décode */
+  decodeName = function () {
+    var el = document.getElementById("name"), final = el.getAttribute("data-text");
+    var glyphs = "01<>/{}#$%&*+=?ABCDEFXYZ", frame = 0, total = 38;
+    function tick() {
+      var out = "";
+      for (var i = 0; i < final.length; i++) {
+        var reveal = (frame / total) * final.length * 1.4 - i * .4;
+        out += final[i] === " " ? " " : (reveal > 1 ? final[i] : glyphs[(Math.random() * glyphs.length) | 0]);
+      }
+      el.textContent = out;
+      if (++frame <= total) requestAnimationFrame(tick); else el.textContent = final;
+    }
+    setTimeout(tick, 250);
+  };
+
+  /* Rôle qui s'écrit, puis fait défiler les spécialités */
+  typeRole = function () {
+    var el = document.getElementById("type");
+    var words = ["Consultant développeur IA", "Jeux et logiciels", "CRM et automatisations", "Assistants IA sur mesure", "Consultant développeur IA"];
+    var w = 0, c = words[0].length, del = false;
+    function step() {
+      var word = words[w];
+      if (!del) {
+        c++; el.textContent = word.slice(0, c);
+        if (c >= word.length) { if (w === words.length - 1) return; del = true; return setTimeout(step, 1600); }
+      } else {
+        c--; el.textContent = word.slice(0, c);
+        if (c <= 0) { del = false; w++; }
+      }
+      setTimeout(step, del ? 28 : 55);
+    }
+    setTimeout(function () { del = true; step(); }, 2600);
+  };
+
+  /* Toucher l'écran : gerbe d'étincelles et onde de choc */
+  (function () {
+    var cv = document.getElementById("fx"), ctx = cv.getContext("2d");
+    var dpr = Math.min(window.devicePixelRatio || 1, 2), W, H, parts = [], rings = [], running = false;
+    function size() { W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+    size(); window.addEventListener("resize", size);
+    var cols = ["#3ee6ff", "#7c6cff", "#5dffb5", "#ffffff"];
+    function burst(x, y, byHand) {
+      for (var i = 0; i < 46; i++) {
+        var a = Math.random() * 6.283, s = 1.5 + Math.random() * 6;
+        parts.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, c: cols[i % 4], r: 1 + Math.random() * 2.4 });
+      }
+      rings.push({ x: x, y: y, r: 4, life: 1 });
+      if (byHand && navigator.vibrate) try { navigator.vibrate(12); } catch (e) {}
+      if (!running) { running = true; requestAnimationFrame(loop); }
+    }
+    function loop() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.globalCompositeOperation = "lighter";
+      for (var i = parts.length - 1; i >= 0; i--) {
+        var p = parts[i]; p.x += p.vx; p.y += p.vy; p.vx *= .955; p.vy = p.vy * .955 + .06; p.life -= .018;
+        if (p.life <= 0) { parts.splice(i, 1); continue; }
+        ctx.globalAlpha = p.life; ctx.fillStyle = p.c;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.283); ctx.fill();
+      }
+      for (var k = rings.length - 1; k >= 0; k--) {
+        var g = rings[k]; g.r += 7; g.life -= .03;
+        if (g.life <= 0) { rings.splice(k, 1); continue; }
+        ctx.globalAlpha = g.life * .8; ctx.strokeStyle = "#3ee6ff"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, 6.283); ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+      if (parts.length || rings.length) requestAnimationFrame(loop); else running = false;
+    }
+    document.getElementById("show").addEventListener("pointerdown", function (e) { burst(e.clientX, e.clientY, true); });
+    /* Une gerbe toute seule de temps en temps sur la scène « Touchez l'écran » */
+    var touch = document.getElementById("touch");
+    setInterval(function () {
+      var r = touch.getBoundingClientRect();
+      if (r.top < H * .5 && r.bottom > H * .5 && sheet.hidden) burst(W * (.25 + Math.random() * .5), r.top + r.height * (.2 + Math.random() * .3));
+    }, 1400);
+  })();
+
+  /* Carte qui s'incline et reflet qui suit le doigt */
+  (function () {
+    var frame = document.getElementById("frame"), card = document.getElementById("card");
+    function move(x, y) {
+      var r = frame.getBoundingClientRect();
+      var px = (x - r.left) / r.width, py = (y - r.top) / r.height;
+      frame.style.transform = "rotateY(" + ((px - .5) * 8) + "deg) rotateX(" + ((.5 - py) * 8) + "deg)";
+      card.style.setProperty("--mx", (px * 100) + "%");
+      card.style.setProperty("--my", (py * 100) + "%");
+    }
+    window.addEventListener("pointermove", function (e) { move(e.clientX, e.clientY); });
+    window.addEventListener("pointerleave", function () { frame.style.transform = ""; });
+  })();
+
+  /* Réseau de neurones en fond */
+  (function () {
+    var cv = document.getElementById("net"), ctx = cv.getContext("2d");
+    var dpr = Math.min(window.devicePixelRatio || 1, 2), W, H, pts = [], mouse = { x: -999, y: -999 };
+    function size() {
+      W = cv.clientWidth; H = cv.clientHeight; cv.width = W * dpr; cv.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var n = Math.round(Math.min(90, (W * H) / 14000));
+      pts = [];
+      for (var i = 0; i < n; i++) pts.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - .5) * .35, vy: (Math.random() - .5) * .35, p: Math.random() * 6.28 });
+    }
+    window.addEventListener("resize", size);
+    window.addEventListener("pointermove", function (e) { mouse.x = e.clientX; mouse.y = e.clientY; });
+    var pulses = [];
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      var L = 130;
+      for (var i = 0; i < pts.length; i++) {
+        var a = pts[i];
+        a.x += a.vx; a.y += a.vy; a.p += .03;
+        if (a.x < 0 || a.x > W) a.vx *= -1;
+        if (a.y < 0 || a.y > H) a.vy *= -1;
+        var dm = Math.hypot(a.x - mouse.x, a.y - mouse.y);
+        if (dm < 160) { a.x += (a.x - mouse.x) / dm * .6; a.y += (a.y - mouse.y) / dm * .6; }
+        for (var j = i + 1; j < pts.length; j++) {
+          var b = pts[j], d = Math.hypot(a.x - b.x, a.y - b.y);
+          if (d < L) {
+            ctx.strokeStyle = "rgba(124,108,255," + (1 - d / L) * .35 + ")";
+            ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+            if (Math.random() < .0008 && pulses.length < 14) pulses.push({ a: a, b: b, t: 0 });
+          }
+        }
+        ctx.fillStyle = "rgba(62,230,255," + (.45 + Math.sin(a.p) * .3) + ")";
+        ctx.beginPath(); ctx.arc(a.x, a.y, 1.6, 0, 6.28); ctx.fill();
+      }
+      /* Impulsions qui voyagent le long des liens */
+      for (var k = pulses.length - 1; k >= 0; k--) {
+        var q = pulses[k]; q.t += .025;
+        if (q.t >= 1) { pulses.splice(k, 1); continue; }
+        var x = q.a.x + (q.b.x - q.a.x) * q.t, y = q.a.y + (q.b.y - q.a.y) * q.t;
+        ctx.fillStyle = "rgba(93,255,181,.9)"; ctx.shadowColor = "#5dffb5"; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 6.28); ctx.fill(); ctx.shadowBlur = 0;
+      }
+      requestAnimationFrame(draw);
+    }
+    size(); draw();
+  })();
+}
+</script>
+
+</body></html>
