@@ -1,8 +1,10 @@
 /* jeu-bureau.js : parcours isométrique « compétences » pour la carte de visite.
  * Suppose THREE (build UMD r128) déjà chargé.
- * API : JeuBureau.mount(conteneur, { onStep(index, titre, phrase), onArrive() })
- *       JeuBureau.reset()   JeuBureau.stop()
+ * API : JeuBureau.mount(conteneur, { onStep(index, titre, phrase), onArrive(), onWalk(vers), onQueue() })
+ *       → renvoie l'API, ou null si WebGL manque.
+ *       JeuBureau.reset()   JeuBureau.stop()   JeuBureau.heroScreen() → {x, y} des pieds du personnage, en px dans le conteneur
  * Un toucher = une étape. 4 stations, puis la porte du bureau.
+ * Un toucher pendant la marche est gardé : le personnage repart 0,8 s après son arrivée.
  */
 (function () {
   "use strict";
@@ -17,10 +19,13 @@
   ];
   var CONSIGNE = "Touchez l'écran pour avancer";
   var TOP_FREE = 0.30;      // part de la hauteur laissée au titre de la page
-  var BOTTOM_FREE = 90;     // px laissés au bouton « Prendre contact »
+  var BOTTOM_FREE = 40;     // px laissés en bas (plus de bouton fixe)
   var VIEW_W = 7.4;         // largeur visible minimale (unités monde)
   var VIEW_H = 10;          // hauteur visible minimale dans la zone du milieu
   var SPEED = 2.7;          // unités / s
+  var ZOOM_START = 0.9;     // s après l'arrivée à la porte : début du grand plan
+  var ZOOM_T = 1.5;         // durée du zoom dans la porte (s)
+  var ZOOM_MAX = 26;        // grossissement final : la porte remplit l'écran
   var S2 = Math.SQRT2;
 
   var inst = null;
@@ -483,7 +488,6 @@
       g.beginPath(); g.moveTo(tailX - 30, bodyH - 9); g.lineTo(tailX, H - 8); g.lineTo(tailX + 30, bodyH - 9); g.stroke();
       g.textBaseline = "top"; g.textAlign = "left";
       g.fillStyle = i % 2 ? "#a99dff" : "#3ee6ff"; g.font = "800 84px " + FONT; g.fillText(e.titre, pad, pad - 6);
-      g.textAlign = "right"; g.fillStyle = "#7c86c8"; g.font = "700 46px " + FONT; g.fillText((i + 1) + " / 4", W - pad, pad + 14);
       g.textAlign = "left"; g.fillStyle = "#eef2ff"; g.font = "500 56px " + FONT;
       for (var l = 0; l < lines.length; l++) g.fillText(lines[l], pad, pad + 84 + 22 + l * 70);
       bubbleTex.needsUpdate = true;
@@ -512,7 +516,10 @@
     }
 
     // ---------- état du parcours ----------
-    var G = { state: "idle", idx: 0, from: null, to: null, walkT: 0, walkLen: 1, phase: 0, enterT: 0, bubbleT: 0, bubbleIdx: -1, firstTap: false };
+    var G = { state: "idle", idx: 0, from: null, to: null, walkT: 0, walkLen: 1, phase: 0, enterT: 0, bubbleT: 0, bubbleIdx: -1, firstTap: false, queued: false, waitT: 0 };
+    function call(name, a) {
+      if (typeof S.opts[name] === "function") { try { S.opts[name](a); } catch (e) { setTimeout(function () { throw e; }); } }
+    }
     S.G = G;
 
     function face(dx, dz) { if (dx * dx + dz * dz > 1e-6) hero.rotation.y = Math.atan2(dx, dz); }
@@ -539,6 +546,7 @@
       face(G.to.x - G.from.x, G.to.z - G.from.z);
       bubble.visible = false; G.bubbleIdx = -1;
       updateHint();
+      call("onWalk", G.idx + 1);
     }
 
     function arriveAt(i) {
@@ -551,21 +559,23 @@
         bubble.position.copy(P(0, vOf(STAND[i - 1]), 3.6));
         if (typeof S.opts.onStep === "function") { try { S.opts.onStep(i - 1, ETAPES[i - 1].titre, ETAPES[i - 1].phrase); } catch (e) { setTimeout(function () { throw e; }); } }
       }
-      if (i === WAY.length - 1) { G.state = "enter"; G.enterT = 0; G.arrived = false; burstDone = false; }
+      if (i === WAY.length - 1) { G.state = "enter"; G.enterT = 0; G.arrived = false; burstDone = false; G.queued = false; }
+      else if (G.queued) { G.queued = false; G.waitT = 0.8; }   // toucher gardé : on laisse lire la bulle, puis on repart
       updateHint();
     }
     var burstDone = false;
 
     function advance() {
       if (G.state === "done") { reset(); return; }
+      if (G.state === "walk") { if (!G.queued && G.idx + 1 < WAY.length - 1) { G.queued = true; call("onQueue"); } return; }
       if (G.state !== "idle" || G.idx >= WAY.length - 1) return;
-      G.firstTap = true;
+      G.firstTap = true; G.waitT = 0;
       startWalk();
     }
     S.advance = advance;
 
     function resetState() {
-      G.state = "idle"; G.idx = 0; G.firstTap = false; G.bubbleIdx = -1;
+      G.state = "idle"; G.idx = 0; G.firstTap = false; G.bubbleIdx = -1; G.queued = false; G.waitT = 0;
       hero.visible = true; hero.scale.setScalar(1); hero.position.copy(START); face(-1, -1);
       body.position.y = 0; legL.rotation.x = legR.rotation.x = armL.rotation.x = armR.rotation.x = 0;
       for (var i = 0; i < stations.length; i++) { stations[i].active = false; stations[i].actT = 0; stations[i].k = 0; setLit(stations[i].mats, 0); stations[i].pool.material.opacity = 0; stations[i].update(0, S.t, false); }
@@ -575,9 +585,21 @@
     }
     S.resetState = resetState;
 
+    // position du personnage à l'écran (px, dans le conteneur), pour poser la main d'aide
+    var tmpV = new THREE.Vector3();
+    S.heroScreen = function () {
+      tmpV.copy(hero.position); tmpV.project(cam);   // aux pieds
+      return { x: (tmpV.x + 1) / 2 * S.W, y: (1 - tmpV.y) / 2 * S.H };
+    };
+
     // ---------- boucle ----------
     function update(dt) {
       var t = S.t, rm = S.rm;
+      // toucher gardé en mémoire : départ après le temps de lecture
+      if (G.state === "idle" && G.waitT > 0) {
+        G.waitT -= dt;
+        if (G.waitT <= 0) { G.waitT = 0; G.firstTap = true; startWalk(); }
+      }
       // marche
       if (G.state === "walk") {
         G.walkT += dt * SPEED;
@@ -609,8 +631,10 @@
             if (!rm) { G.phase += dt * 11; legL.rotation.x = Math.sin(G.phase) * 0.5; legR.rotation.x = -Math.sin(G.phase) * 0.5; }
             if (!burstDone && !rm) { burst(); burstDone = true; }
           }
-          if (e > 1.0) {
-            hero.visible = false; G.state = "done";
+          if (e > 1.0) hero.visible = false;
+          // puis grand plan : la caméra plonge dans la porte (sauf mouvement réduit)
+          if (e > (rm ? 1.0 : ZOOM_START + ZOOM_T)) {
+            G.state = "done";
             if (typeof S.opts.onArrive === "function") { try { S.opts.onArrive(); } catch (err) { setTimeout(function () { throw err; }); } }
           }
         }
@@ -672,10 +696,35 @@
         var dir = Math.sin(t * 0.6) >= 0 ? 1 : -1;
         rover.rotation.y = Math.atan2((roverB.x - roverA.x) * dir, (roverB.z - roverA.z) * dir);
       }
-      // caméra qui suit le personnage
+      // caméra : grand plan dans la porte à la fin, sinon elle suit le personnage
+      var zf = (!rm && (G.state === "enter" || G.state === "done")) ? clamp01((G.enterT - ZOOM_START) / ZOOM_T) : 0;
+      if (zf > 0) { zoomCamera(zf); return; }
+      if (S.zoom0) { S.zoom0 = null; cam.zoom = 1; cam.updateProjectionMatrix(); veil.style.opacity = ""; }
       var want = vOf(hero.position) + ((G.idx >= 5 || (G.state === "walk" && G.idx === 4)) ? -3.4 : 0);
       S.camV += (want - S.camV) * (1 - Math.exp(-dt * 3));
       placeCamera();
+    }
+
+    // Zoom avant dans la porte : la porte glisse vers le centre de l'écran et grossit jusqu'à le remplir.
+    var DOOR_C = new THREE.Vector3(BC.x, 0.9, doorZ + 0.01);
+    function zoomCamera(zf) {
+      if (!S.zoom0) {
+        cam.updateMatrixWorld();
+        var n = DOOR_C.clone().project(cam);   // position de la porte à l'écran (−1…1) au début du plan
+        S.zoom0 = {
+          target: S.camTarget.clone(),
+          dx: n.x * (cam.right - cam.left) / 2, dy: n.y * (cam.top - cam.bottom) / 2,
+          right: new THREE.Vector3(1, 0, 0).applyQuaternion(cam.quaternion),
+          up: new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion)
+        };
+      }
+      var z0 = S.zoom0, g = ease(zf), z = Math.pow(ZOOM_MAX, g * g);
+      var k = 1 - (1 - g) / z;   // part du décalage porte → centre déjà rattrapée
+      var look = z0.target.clone().addScaledVector(z0.right, z0.dx * k).addScaledVector(z0.up, z0.dy * k);
+      cam.position.set(look.x + 30, look.y + 30, look.z + 30);
+      cam.lookAt(look);
+      cam.zoom = z; cam.updateProjectionMatrix();
+      veil.style.opacity = String(1 - g);
     }
 
     function placeCamera() {
@@ -774,8 +823,9 @@
   var api = {
     mount: mount, reset: reset, stop: stop,
     CONSIGNE: CONSIGNE, ETAPES: ETAPES,
+    heroScreen: function () { return inst ? inst.heroScreen() : null; },
     // aide aux tests : état courant, sans effet sur le jeu
-    _etat: function () { return inst ? { etat: inst.G.state, index: inst.G.idx } : null; }
+    _etat: function () { return inst ? { etat: inst.G.state, index: inst.G.idx, enAttente: inst.G.queued || inst.G.waitT > 0, t: Math.round(inst.G.enterT * 100) / 100 } : null; }
   };
   window.JeuBureau = api;
 })();

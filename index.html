@@ -1,5 +1,6 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="Benjamin Huteau, consultant développeur IA : jeu, logiciel, CRM, automatisation, assistant IA. Tarif sur devis."><meta name="theme-color" content="#070912"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
 <title>Benjamin Huteau</title>
+<link rel="preload" as="image" href="waouh-poster.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;800&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -29,7 +30,7 @@ body {
   overflow-x: hidden; position: relative;
   -webkit-tap-highlight-color: transparent;
 }
-/* Le spectacle : 3 scènes plein écran qui s'enclenchent au défilement */
+/* Le spectacle : 3 scènes (vidéo, parcours, carte de visite) qui s'enclenchent au défilement */
 html { scroll-snap-type: y mandatory; }
 .show { position: relative; z-index: 1; }
 .scene {
@@ -39,10 +40,9 @@ html { scroll-snap-type: y mandatory; }
 .scene video, .scene canvas#iso { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .veil { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(7,9,18,0) 35%, rgba(7,9,18,.85) 82%, var(--bg)); pointer-events: none; }
 .say {
-  position: relative; z-index: 2; padding: 0 22px 118px; display: flex; flex-direction: column; gap: 10px;
+  position: relative; z-index: 2; padding: 0 22px calc(48px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px;
   animation: up .9s cubic-bezier(.2,.8,.2,1) both .3s;
 }
-.say.mid { margin-block: auto; padding-bottom: 60px; }
 @keyframes up { from { transform: translateY(24px); opacity: .3; } }
 .tag { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--cyan); }
 .big {
@@ -51,48 +51,71 @@ html { scroll-snap-type: y mandatory; }
   background: linear-gradient(100deg, var(--fg) 30%, var(--cyan) 50%, var(--fg) 70%); background-size: 250% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 5s ease-in-out 1.5s infinite;
 }
-.big.long { font-size: clamp(22px, 6.3vw, 36px); }
 .say { max-width: 100%; min-width: 0; }
 .big { overflow-wrap: break-word; }
 .small { margin: 0; color: #d0d7ee; font-size: 16px; max-width: 32ch; }
 .hint { font-family: var(--f-mono); font-size: 12px; color: var(--muted); animation: bob 1.6s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(5px); } }
 .jeu { position: absolute; inset: 0; }
-.say.top { position: absolute; top: 0; left: 0; right: 0; padding: calc(28px + env(safe-area-inset-top, 0px)) 22px 0; pointer-events: none; }
-.s-touch { background: radial-gradient(120% 70% at 50% 40%, rgba(124,108,255,.18), transparent 70%); touch-action: manipulation; }
+.say.haut { position: absolute; top: 0; left: 0; right: 0; padding: calc(24px + env(safe-area-inset-top, 0px)) 22px 0; pointer-events: none; gap: 8px; }
+/* Guidage du parcours : une barre de progression + une consigne */
+.progres { height: 12px; margin: 0 0 2px; border-radius: 99px; overflow: hidden;
+  background: rgba(148,160,210,.16); border: 1px solid rgba(148,160,210,.32); }
+.progres i { display: block; height: 100%; width: 0; border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--mint)); box-shadow: 0 0 14px rgba(93,255,181,.7);
+  transition: width .6s cubic-bezier(.2,1.3,.4,1); }
+.guide-p { margin: 0; font: 700 19px/1.3 var(--f-body); color: var(--fg); min-height: 2.6em; text-wrap: balance; }
+@keyframes ping-c { 70% { box-shadow: 0 0 0 9px rgba(62,230,255,0); } 100% { box-shadow: 0 0 0 0 rgba(62,230,255,0); } }
+/* Flèche qui montre où toucher */
+.fleche { position: absolute; left: 0; top: 0; z-index: 3; width: 48px; height: 56px; pointer-events: none; will-change: transform; }
+.fleche svg { display: block; width: 48px; height: 56px; filter: drop-shadow(0 0 8px rgba(93,255,181,.85)); animation: rebond 1s ease-in-out infinite; }
+.fleche.gauche svg { transform: rotate(90deg); animation-name: rebond-g; }
+.fleche.haut svg { transform: rotate(180deg); animation-name: rebond-h; }
+@keyframes rebond { 50% { transform: translateY(-12px); } }
+@keyframes rebond-h { 0%, 100% { transform: rotate(180deg); } 50% { transform: rotate(180deg) translateY(-12px); } }
+@keyframes rebond-g { 0%, 100% { transform: rotate(90deg); } 50% { transform: rotate(90deg) translateY(-12px); } }
+/* Fondu de l'entrée dans le bureau */
+.fondu { position: fixed; inset: 0; z-index: 20; background: #bff8ff; opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+.fondu.on { opacity: 1; }
+/* Secours sans 3D : 4 cartes + le bureau */
+.plan { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;
+  padding: calc(130px + env(safe-area-inset-top, 0px)) 22px calc(28px + env(safe-area-inset-bottom, 0px)); }
+.etape { display: block; width: 100%; text-align: left; padding: 11px 44px 11px 14px; border-radius: 14px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(16,21,40,.6); color: var(--muted); font: 700 16px/1.3 var(--f-body);
+  opacity: .55; transition: opacity .3s, background .3s, border-color .3s, color .3s; }
+.etape small { display: none; margin-top: 3px; font: 400 14px/1.4 var(--f-body); color: #d8def3; }
+.etape.cur { opacity: 1; color: var(--fg); border-color: var(--cyan); animation: ping-c 1.6s infinite; }
+.etape.on { opacity: 1; color: var(--mint); border-color: rgba(93,255,181,.55); background: rgba(93,255,181,.08); }
+.etape.on small { display: block; }
+.etape.bureau { text-align: center; font-size: 17px; padding: 14px; }
+.etape.bureau.cur { color: #061018; background: linear-gradient(100deg, var(--cyan), var(--mint)); border-color: transparent; }
 
-/* Bouton fixe en bas */
-.cta-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(180deg, transparent, rgba(7,9,18,.9) 45%);
+/* Dernière scène : la carte de visite, dans la page */
+.scene.s-carte {
+  display: block; height: auto; min-height: 100svh; overflow: visible;
+  padding: calc(30px + env(safe-area-inset-top, 0px)) 14px calc(30px + env(safe-area-inset-bottom, 0px));
+  background: radial-gradient(120% 60% at 50% 30%, rgba(124,108,255,.16), transparent 70%);
 }
-.cta {
-  position: relative; overflow: hidden; width: 100%; max-width: 430px; display: block; margin: 0 auto;
-  min-height: 56px; border: 0; border-radius: 16px; cursor: pointer;
-  font: 700 17px var(--f-body); color: #061018; letter-spacing: .01em;
-  background: linear-gradient(100deg, var(--cyan), var(--mint));
-  box-shadow: 0 0 0 0 rgba(62,230,255,.5), 0 12px 30px -10px rgba(62,230,255,.6);
-  animation: glow 2.4s ease-out infinite;
+/* 2ᵉ point d'arrêt du défilement, en bas de la carte : on peut toujours atteindre le bas, même avec le « snap » */
+.s-carte .fin { height: 1px; scroll-snap-align: end; }
+.s-carte > .big { max-width: 430px; margin: 0 auto 18px; padding-inline: 8px; }
+.photo {
+  display: block; width: 132px; height: 132px; margin: 0 auto 4px; border-radius: 50%; object-fit: cover;
+  border: 3px solid var(--cyan); box-shadow: 0 0 0 6px rgba(62,230,255,.12), 0 14px 40px -12px rgba(62,230,255,.65);
 }
-.cta::after { content: ""; position: absolute; top: 0; left: -60%; width: 40%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); transform: skewX(-20deg); animation: shine 3.2s ease-in-out infinite 1s; }
-.cta:active { transform: scale(.97); }
-@keyframes glow { 0% { box-shadow: 0 0 0 0 rgba(62,230,255,.45), 0 12px 30px -10px rgba(62,230,255,.6); } 70%, 100% { box-shadow: 0 0 0 14px rgba(62,230,255,0), 0 12px 30px -10px rgba(62,230,255,.6); } }
-
-/* La carte de contact, qui monte par-dessus */
-.sheet {
-  position: fixed; inset: 0; z-index: 10; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  background: rgba(5,7,14,.78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  padding-inline: 14px; padding-block: calc(56px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-bottom, 0px));
-  animation: fade .35s ease both;
+.reseaux { display: flex; gap: 14px; justify-content: center; }
+.reseau {
+  width: 56px; height: 56px; display: grid; place-items: center; border-radius: 16px; color: var(--fg);
+  border: 1px solid var(--line); background: rgba(7,9,18,.35); transition: border-color .2s, color .2s;
 }
-@keyframes fade { from { opacity: 0; } }
-.close {
-  position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 12px; z-index: 11;
-  width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--glass);
-  color: var(--fg); font-size: 16px; cursor: pointer;
+.reseau:hover { border-color: var(--cyan); color: var(--cyan); }
+.reseau:active { transform: scale(.95); }
+.reseau svg { width: 28px; height: 28px; }
+.rejouer {
+  display: block; width: 100%; min-height: 52px; border-radius: 13px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(7,9,18,.35); color: var(--fg); font: 500 15px var(--f-body);
 }
-body.locked { overflow: hidden; }
+.rejouer:active { transform: scale(.98); }
 #net { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .aurora { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(70px); opacity: .55; }
 .aurora i { position: absolute; border-radius: 50%; mix-blend-mode: screen; }
@@ -172,21 +195,8 @@ h1 {
 .price b { font-family: var(--f-mono); font-weight: 500; color: var(--cyan); white-space: nowrap; }
 .price span { color: var(--muted); }
 
-.rows { display: flex; flex-direction: column; gap: 8px; }
-.row {
-  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; min-height: 54px;
-  border: 1px solid var(--line); border-radius: 13px; background: rgba(7, 9, 18, .35);
-  animation: slide .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(1.3s + var(--i) * 90ms);
-  transition: border-color .2s, background .2s;
-}
-.row:hover { border-color: rgba(62,230,255,.5); background: rgba(62,230,255,.05); }
+.rows { display: flex; flex-direction: column; gap: 14px; }
 @keyframes slide { from { transform: translateX(-18px); opacity: .2; } }
-.row .k { font-family: var(--f-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); width: 82px; flex: none; }
-.row .v { font-family: var(--f-mono); font-size: 14px; min-width: 0; flex: 1; overflow-wrap: anywhere; color: var(--fg); text-decoration: none; }
-.row a.v:hover { color: var(--cyan); }
-a.row { text-decoration: none; color: var(--fg); }
-a.row:active { transform: scale(.98); }
-.row .arrow { flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: rgba(124,108,255,.16); border: 1px solid rgba(124,108,255,.45); color: var(--cyan); font-size: 16px; }
 .save {
   position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; padding: 14px;
   border-radius: 15px; text-decoration: none; color: #061018;
@@ -243,10 +253,6 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 .foot { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-family: var(--f-mono); font-size: 11px; color: var(--muted); margin: 0; }
 .foot .sig { color: var(--indigo); }
 
-@media (max-width: 380px) {
-  .row .k { width: 64px; font-size: 10px; }
-  .row .v { font-size: 13px; }
-}
 /* Grand écran : la carte reste au format téléphone, au centre */
 @media (min-width: 700px) { body { padding-block: 40px; } }
 @media (prefers-reduced-motion: reduce) {
@@ -261,7 +267,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 
 <div class="show" id="show">
   <section class="scene s-video" aria-label="L'IA en action">
-    <video id="vid" autoplay muted loop playsinline preload="auto" poster="waouh-poster.jpg">
+    <video id="vid" autoplay muted loop playsinline preload="metadata" poster="waouh-poster.jpg">
       <source src="waouh-web.webm" type="video/webm">
       <source src="waouh-web.mp4" type="video/mp4">
     </video>
@@ -274,94 +280,82 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
     </div>
   </section>
 
-  <section class="scene s-iso" aria-label="L'atelier numérique">
-    <canvas id="iso" aria-hidden="true"></canvas>
-    <div class="veil"></div>
-    <div class="say">
-      <span class="tag">02 · Mon atelier</span>
-      <h2 class="big long">Jeu, logiciel, CRM, automatisation…</h2>
-      <p class="small">J'accompagne chacun dans son projet numérique, quel qu'il soit.</p>
-    </div>
-  </section>
-
-  <section class="scene s-jeu" aria-label="Mini-jeu : entrez dans mon bureau">
+  <section class="scene s-jeu" aria-label="Mini-jeu : mes compétences, puis entrez dans mon bureau">
     <div id="jeu" class="jeu"></div>
-    <div class="say top">
-      <span class="tag" id="jeu-tag">03 · Mes compétences</span>
-      <h2 class="big long" id="jeu-titre">Faites le tour en 4 étapes.</h2>
-      <p class="small" id="jeu-phrase">Touchez l'écran pour avancer.</p>
+    <div class="fleche" id="jeu-fleche" aria-hidden="true" hidden>
+      <svg viewBox="0 0 48 56"><path d="M15 3h18v25h12L24 53 3 28h12z" fill="#5dffb5" stroke="#061018" stroke-width="3" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="say haut">
+      <div class="progres" id="jeu-progres" role="progressbar" aria-label="Progression du parcours" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0"><i></i></div>
+      <p class="guide-p" id="jeu-phrase" aria-live="polite">Chargement du jeu…</p>
     </div>
   </section>
 
-  <section class="scene s-touch" id="touch" aria-label="Touchez l'écran">
-    <div class="say mid">
-      <span class="tag">04 · À vous</span>
-      <h2 class="big">Et votre projet&nbsp;?</h2>
-      <p class="small">Chaque projet est sur mesure. Tarif sur devis, selon sa complexité. Touchez l'écran, puis prenons contact.</p>
-    </div>
-  </section>
-</div>
+  <section class="scene s-carte" id="carte" aria-label="Ma carte de visite">
+    <h2 class="big">Et votre projet&nbsp;?</h2>
+    <div class="stage">
+      <div class="frame" id="frame">
+        <main class="card" id="card">
+          <div class="top">
+            <span class="status"><i></i>Disponible pour vos projets</span>
+            <span>v.2026</span>
+          </div>
 
-<div class="cta-bar"><button class="cta" id="open" type="button">Prendre contact</button></div>
+          <img class="photo" src="photo-benjamin.jpg" width="600" height="600" alt="Photo de Benjamin Huteau" decoding="async">
 
-<div class="sheet" id="sheet" hidden>
-<button class="close" id="close" type="button" aria-label="Fermer">✕</button>
-<div class="stage">
-  <div class="frame" id="frame">
-    <main class="card" id="card">
-      <div class="top">
-        <span class="status"><i></i>Disponible pour vos projets</span>
-        <span>v.2026</span>
+          <header class="head">
+            <h1 id="name" data-text="Benjamin Huteau">Benjamin Huteau</h1>
+            <div class="role" aria-label="Consultant développeur IA"><span id="type">Consultant développeur IA</span><span class="caret"></span></div>
+          </header>
+
+          <p class="bio">J'accompagne chacun dans son projet numérique, quel qu'il soit. Vous avez une idée ou un besoin ? On le construit ensemble.</p>
+
+          <ul class="chips" aria-label="Exemples de projets">
+            <li style="--i:0">Jeu</li><li style="--i:1">Logiciel</li><li style="--i:2">CRM</li><li style="--i:3">Site internet</li>
+            <li style="--i:4">Automatisation</li><li style="--i:5">Assistant IA</li><li style="--i:6">Réseaux sociaux</li><li style="--i:7">Outil sur mesure</li>
+          </ul>
+
+          <div class="price"><b>Sur devis</b><span>selon votre projet et sa complexité</span></div>
+
+          <section class="rows" aria-label="Coordonnées">
+            <a class="save" href="https://bentoto02.github.io/carte/benjamin-huteau.vcf" target="_blank" rel="noopener">
+              <span class="save-ico" aria-hidden="true">+</span>
+              <span class="save-txt"><strong>Enregistrer le contact</strong>Téléphone et mail dans votre répertoire</span>
+            </a>
+            <div class="reseaux">
+              <a class="reseau" href="https://www.instagram.com/__bento___/" target="_blank" rel="noopener" aria-label="Instagram de Benjamin Huteau">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>
+              </a>
+              <a class="reseau" href="https://www.linkedin.com/in/benjamin-huteau-75796a1b1" target="_blank" rel="noopener" aria-label="LinkedIn de Benjamin Huteau">
+                <svg viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" aria-hidden="true"><path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 7.5v7h2.4v-7H7zm1.2-4a1.4 1.4 0 1 0 0 2.8 1.4 1.4 0 0 0 0-2.8zM11 10.5v7h2.4v-3.7c0-1 .4-1.6 1.3-1.6.8 0 1.2.6 1.2 1.6v3.7h2.4v-4.3c0-2-1-2.9-2.6-2.9-1 0-1.8.5-2.2 1.1v-.9H11z"/></svg>
+              </a>
+            </div>
+          </section>
+
+          <section class="qrs" aria-label="Partager la carte">
+            <div class="qr">
+              <div class="code" id="qr-page"><b></b><b></b><b></b><b></b></div>
+              <p><strong>Partagez cette carte</strong>Montrez ce code : on le scanne, la carte s'ouvre.</p>
+            </div>
+          </section>
+
+          <p class="foot"><span>Région d'Angers · à distance partout en France</span><span class="sig">&lt;/&gt; fait avec l'IA</span></p>
+
+          <button class="rejouer" id="rejouer" type="button">↺ Rejouer le parcours</button>
+        </main>
       </div>
-
-      <header class="head">
-        <h1 id="name" data-text="Benjamin Huteau">Benjamin Huteau</h1>
-        <div class="role" aria-label="Consultant développeur IA"><span id="type">Consultant développeur IA</span><span class="caret"></span></div>
-      </header>
-
-      <p class="bio">J'accompagne chacun dans son projet numérique, quel qu'il soit. Vous avez une idée ou un besoin ? On le construit ensemble.</p>
-
-      <ul class="chips" aria-label="Exemples de projets">
-        <li style="--i:0">Jeu</li><li style="--i:1">Logiciel</li><li style="--i:2">CRM</li><li style="--i:3">Site internet</li>
-        <li style="--i:4">Automatisation</li><li style="--i:5">Assistant IA</li><li style="--i:6">Réseaux sociaux</li><li style="--i:7">Outil sur mesure</li>
-      </ul>
-
-      <div class="price"><b>Sur devis</b><span>selon votre projet et sa complexité</span></div>
-
-      <section class="rows" aria-label="Coordonnées">
-        <a class="save" href="https://bentoto02.github.io/carte/benjamin-huteau.vcf" target="_blank" rel="noopener">
-          <span class="save-ico" aria-hidden="true">+</span>
-          <span class="save-txt"><strong>Enregistrer le contact</strong>Téléphone et mail dans votre répertoire</span>
-        </a>
-        <a class="row link" href="https://www.instagram.com/__bento___/" target="_blank" rel="noopener" style="--i:1">
-          <span class="k">Instagram</span>
-          <span class="v">@__bento___</span>
-          <span class="arrow" aria-hidden="true">↗</span>
-        </a>
-        <a class="row link" href="https://www.linkedin.com/in/benjamin-huteau-75796a1b1" target="_blank" rel="noopener" style="--i:2">
-          <span class="k">LinkedIn</span>
-          <span class="v">Benjamin Huteau</span>
-          <span class="arrow" aria-hidden="true">↗</span>
-        </a>
-      </section>
-
-      <section class="qrs" aria-label="Partager la carte">
-        <div class="qr">
-          <div class="code" id="qr-page"><b></b><b></b><b></b><b></b></div>
-          <p><strong>Partagez cette carte</strong>Montrez ce code : on le scanne, la carte s'ouvre.</p>
-        </div>
-      </section>
-
-      <p class="foot"><span>Région d'Angers · à distance partout en France</span><span class="sig">&lt;/&gt; fait avec l'IA</span></p>
-    </main>
-  </div>
-</div>
+    </div>
+    <div class="fin" aria-hidden="true"></div>
+  </section>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="intro-iso.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="jeu-bureau.js"></script>
+<div class="fondu" id="fondu" aria-hidden="true"></div>
+
+<!-- defer : téléchargés sans bloquer la page, exécutés dans l'ordre (Three.js, puis jeu-bureau.js),
+     puis le jeu est monté à DOMContentLoaded, donc après eux. -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script defer src="jeu-bureau.js"></script>
 <script>
 var PAGE_URL = "https://bentoto02.github.io/carte/";
 var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -374,41 +368,131 @@ function qr(id, text) {
     });
   } catch (e) {}
 }
-qr("qr-page", PAGE_URL);
 
-
-/* Ouvrir / fermer la carte de contact */
-var sheet = document.getElementById("sheet"), played = false;
-function openCard() {
-  sheet.hidden = false; document.body.classList.add("locked"); sheet.scrollTop = 0;
-  if (!played && !calm) { played = true; decodeName(); typeRole(); }
+/* La carte de visite est la dernière scène de la page. Ses animations (nom qui se décode,
+   rôle qui s'écrit) se jouent la première fois qu'elle apparaît, qu'on y arrive par le jeu ou en défilant. */
+var carteScene = document.getElementById("carte"), played = false;
+function playCard() { if (!played && !calm) { played = true; decodeName(); typeRole(); } }
+if (window.IntersectionObserver) {
+  new IntersectionObserver(function (en) { if (en[0].isIntersecting) playCard(); }, { threshold: .25 }).observe(carteScene);
 }
-document.getElementById("open").addEventListener("click", openCard);
+/* Entrée dans le bureau : fondu, puis on se retrouve sur la carte */
+function entrerBureau(apres) {
+  var f = document.getElementById("fondu");
+  function arrive() {
+    carteScene.scrollIntoView({ behavior: "auto", block: "start" });
+    playCard();
+    if (apres) apres();
+  }
+  if (calm) { arrive(); return; }
+  f.classList.add("on");
+  setTimeout(function () { arrive(); setTimeout(function () { f.classList.remove("on"); }, 60); }, 380);
+}
+var rejouer = function () {};
+document.getElementById("rejouer").addEventListener("click", function () {
+  rejouer();
+  document.querySelector(".s-jeu").scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+});
 
-/* Le mini-jeu 3D (Three.js + jeu-bureau.js) : quand le personnage entre, la carte s'ouvre */
-(function () {
-  var box = document.getElementById("jeu");
+/* Le parcours des compétences : barre de progression, consigne, flèche ; 3D si possible, sinon 4 cartes */
+var ETAPES_SECOURS = [
+  { titre: "Automatisation", phrase: "Les tâches répétitives se font toutes seules : mails, devis, relances." },
+  { titre: "Agent IA", phrase: "Un assistant qui répond, trie et prépare le travail, 24 h sur 24." },
+  { titre: "CRM", phrase: "Tous vos clients et vos projets au même endroit." },
+  { titre: "Projet numérique", phrase: "Site, logiciel, jeu, outil sur mesure : on le construit ensemble." }
+];
+function startParcours() {
+  var box = document.getElementById("jeu"), scene = document.querySelector(".s-jeu");
+  var phrase = document.getElementById("jeu-phrase"), barre = document.getElementById("jeu-progres");
+  var fleche = document.getElementById("jeu-fleche"), cibleFleche = null, timer = 0;
+
+  function consigne(t) { phrase.textContent = t; }
+  function progres(n) { barre.firstChild.style.width = (n * 20) + "%"; barre.setAttribute("aria-valuenow", n); }
+  /* La flèche : posée sur une cible (fonction qui renvoie {x, y} dans la scène), suivie à chaque image */
+  function montrer(cible, delai, gauche) {   // gauche : la flèche pointe vers la gauche ; sinon elle pointe vers le haut, sous la cible
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      cibleFleche = cible; fleche.hidden = false; fleche.classList.toggle("gauche", !!gauche); fleche.classList.toggle("haut", !gauche);
+      (function suivre() {
+        if (cibleFleche !== cible) return;
+        var p = cible();
+        if (p) fleche.style.transform = gauche
+          ? "translate(" + Math.round(p.x) + "px," + Math.round(p.y - 28) + "px)"
+          : "translate(" + Math.round(p.x - 24) + "px," + Math.round(p.y + 6) + "px)";
+        requestAnimationFrame(suivre);
+      })();
+    }, delai || 0);
+  }
+  function cacher() { clearTimeout(timer); cibleFleche = null; fleche.hidden = true; }
+
+  /* 1. Le parcours 3D */
+  var ok = null;
   if (window.THREE && window.JeuBureau && box) {
-    var tag = document.getElementById("jeu-tag"), titre = document.getElementById("jeu-titre"), phrase = document.getElementById("jeu-phrase");
     try {
-      JeuBureau.mount(box, {
-        onStep: function (i, t, p) { tag.textContent = "03 · Compétence " + (i + 1) + " / 4"; titre.textContent = t; phrase.textContent = p; },
+      ok = JeuBureau.mount(box, {
+        onWalk: function (vers) { cacher(); consigne(vers === 5 ? "On entre…" : "En route…"); },
+        onQueue: function () { consigne("C'est noté : on continue juste après !"); },
+        onStep: function (i) {
+          var n = i + 1;
+          progres(n);
+          consigne(n === 4 ? "Dernier toucher : entrez dans mon bureau !" : "Touchez pour continuer");
+          var e = JeuBureau._etat();
+          if (!(e && e.enAttente)) montrer(JeuBureau.heroScreen, 700);
+        },
         onArrive: function () {
-          tag.textContent = "03 · Mes compétences"; titre.textContent = "Bienvenue dans mon bureau."; phrase.textContent = "Touchez l'écran pour recommencer.";
-          setTimeout(openCard, 900);
+          progres(5);
+          entrerBureau(function () { JeuBureau.reset(); depart(); });
         }
       });
-    } catch (e) {}
+    } catch (e) { ok = null; }
   }
-})();
-document.getElementById("close").addEventListener("click", function () {
-  sheet.hidden = true; document.body.classList.remove("locked");
-  if (window.JeuBureau && JeuBureau._etat() && JeuBureau._etat().etat === "done") {
-    JeuBureau.reset();
-    document.getElementById("jeu-tag").textContent = "03 · Mes compétences";
-    document.getElementById("jeu-titre").textContent = "Faites le tour en 4 étapes.";
-    document.getElementById("jeu-phrase").textContent = "Touchez l'écran pour avancer.";
+  function depart() { progres(0); consigne("Touchez le personnage pour avancer"); if (ok) montrer(JeuBureau.heroScreen, 300); }
+  if (ok) { rejouer = function () { JeuBureau.reset(); depart(); }; depart(); return; }
+
+  /* 2. Secours (pas de WebGL, ou Three.js absent) : 4 cartes qui s'allument une par une, puis le bureau */
+  var etapes = (window.JeuBureau && JeuBureau.ETAPES) || ETAPES_SECOURS;
+  var plan = document.createElement("div"); plan.className = "plan"; plan.id = "plan";
+  var cartes = [], faites = 0;
+  etapes.forEach(function (e, i) {
+    var b = document.createElement("button"); b.type = "button"; b.className = "etape";
+    b.innerHTML = "<span></span><small></small>";
+    b.firstChild.textContent = e.titre; b.lastChild.textContent = e.phrase;
+    plan.appendChild(b); cartes.push(b);
+  });
+  var porte = document.createElement("button"); porte.type = "button"; porte.className = "etape bureau";
+  porte.textContent = "Entrer dans mon bureau";
+  plan.appendChild(porte); cartes.push(porte);
+  box.appendChild(plan);
+  function cible(el) {
+    return function () {
+      var a = el.getBoundingClientRect(), s = scene.getBoundingClientRect();
+      return { x: a.right - s.left - 46, y: a.top - s.top + a.height / 2 };
+    };
   }
+  function etat() {
+    cartes.forEach(function (c, i) {
+      c.classList.toggle("on", i < faites && i < 4);
+      c.classList.toggle("cur", i === faites);
+      c.disabled = i !== faites;
+    });
+    progres(faites);
+    if (faites < 5) montrer(cible(cartes[faites]), 250, true); else cacher();
+    consigne(faites === 0 ? "Touchez la première carte" : faites < 4 ? "Touchez la carte suivante" :
+      faites === 4 ? "Dernier toucher : entrez dans mon bureau !" : "");
+  }
+  cartes.forEach(function (c, i) {
+    c.addEventListener("click", function () {
+      if (i !== faites) return;
+      faites++; etat();
+      if (faites === 5) entrerBureau(function () { faites = 0; etat(); });
+    });
+  });
+  rejouer = function () { faites = 0; etat(); };
+  etat();
+}
+document.addEventListener("DOMContentLoaded", function () {
+  qr("qr-page", PAGE_URL);
+  startParcours();
 });
 
 /* La vidéo démarre seule, sans le son ; relance si le téléphone l'a bloquée */
@@ -416,12 +500,6 @@ document.getElementById("close").addEventListener("click", function () {
   var v = document.getElementById("vid");
   function go() { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
   go(); document.addEventListener("touchstart", go, { once: true, passive: true });
-})();
-
-/* L'atelier isométrique (dessiné en code, fichier intro-iso.js) */
-(function () {
-  var cv = document.getElementById("iso");
-  if (window.IntroIso && cv) { try { IntroIso.mount(cv); } catch (e) {} }
 })();
 
 var decodeName = function () {}, typeRole = function () {};
@@ -497,12 +575,6 @@ if (!calm) {
       if (parts.length || rings.length) requestAnimationFrame(loop); else running = false;
     }
     document.getElementById("show").addEventListener("pointerdown", function (e) { burst(e.clientX, e.clientY, true); });
-    /* Une gerbe toute seule de temps en temps sur la scène « Touchez l'écran » */
-    var touch = document.getElementById("touch");
-    setInterval(function () {
-      var r = touch.getBoundingClientRect();
-      if (r.top < H * .5 && r.bottom > H * .5 && sheet.hidden) burst(W * (.25 + Math.random() * .5), r.top + r.height * (.2 + Math.random() * .3));
-    }, 1400);
   })();
 
   /* Carte qui s'incline et reflet qui suit le doigt */
