@@ -360,6 +360,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--cyan); outline-
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="intro-iso.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="jeu-bureau.js"></script>
 <script>
 var PAGE_URL = "https://bentoto02.github.io/carte/";
 var calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -401,6 +403,12 @@ document.getElementById("open").addEventListener("click", openCard);
 })();
 document.getElementById("close").addEventListener("click", function () {
   sheet.hidden = true; document.body.classList.remove("locked");
+  if (window.JeuBureau && JeuBureau._etat() && JeuBureau._etat().etat === "done") {
+    JeuBureau.reset();
+    document.getElementById("jeu-tag").textContent = "03 · Mes compétences";
+    document.getElementById("jeu-titre").textContent = "Faites le tour en 4 étapes.";
+    document.getElementById("jeu-phrase").textContent = "Touchez l'écran pour avancer.";
+  }
 });
 
 /* La vidéo démarre seule, sans le son ; relance si le téléphone l'a bloquée */
