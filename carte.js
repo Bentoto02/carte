@@ -5,7 +5,7 @@
    voir formulaire/MODE-EMPLOI.md. Tant que c'est vide, le questionnaire dit clairement
    que rien n'a été envoyé.
    =================================================================================================== */
-var FORM_ENDPOINT = "";
+var FORM_ENDPOINT = "https://script.google.com/macros/s/AKfycbwnoAsazEGDHHrNP0l67PPfiq7Q2B4uc5ETx6FEzLLeSiD3P3IGB2zxEocn4xXBQCNI/exec";
 
 var PAGE_URL = "https://bentoto02.github.io/carte/";
 var VCF_URL = "https://bentoto02.github.io/carte/benjamin-huteau.vcf";
