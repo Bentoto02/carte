@@ -29,11 +29,13 @@ var pile = [], ignorerPop = 0;
 function ouvrir(id) {
   var p = document.getElementById(id);
   if (!p.hidden) return;
-  var h = { p: p, depuis: document.activeElement, hist: false };
+  // y : la position de la page, remise à l'identique à la fermeture (le « snap » ne doit pas ramener ailleurs)
+  var h = { p: p, depuis: document.activeElement, hist: false, y: pile.length ? null : window.scrollY };
   p.hidden = false;
   var d = p.querySelector(".p-defile"); if (d) d.scrollTop = 0;
   pile.push(h);
   document.documentElement.classList.add("verrou");
+  ajusterClavier();
   try { history.pushState({ panneau: id }, ""); h.hist = true; } catch (e) {}
   var f = p.querySelector("[data-focus]");
   if (f) try { f.focus({ preventScroll: true }); } catch (e) {}
@@ -41,10 +43,39 @@ function ouvrir(id) {
 function masquerHaut() {
   var h = pile.pop(); if (!h) return null;
   h.p.hidden = true;
-  if (!pile.length) document.documentElement.classList.remove("verrou");
-  if (h.depuis && h.depuis.focus) try { h.depuis.focus({ preventScroll: true }); } catch (e) {}
+  if (!pile.length) {
+    document.documentElement.classList.remove("verrou");
+    if (h.y != null && Math.abs(window.scrollY - h.y) > 1) window.scrollTo(0, h.y);
+  }
+  if (h.depuis && h.depuis.focus && document.contains(h.depuis)) try { h.depuis.focus({ preventScroll: true }); } catch (e) {}
+  if (h.p.id === "p-projet") majPorte();
   return h;
 }
+/* Clavier du téléphone : le panneau ouvert prend la hauteur visible (au-dessus du clavier),
+   et le champ actif est ramené au milieu de ce qui reste visible. */
+var vv = window.visualViewport;
+function ajusterClavier() {
+  if (!vv) return;
+  pile.forEach(function (h) {
+    h.p.style.height = Math.round(vv.height) + "px";
+    h.p.style.top = Math.round(vv.offsetTop) + "px";
+    h.p.style.bottom = "auto";
+  });
+}
+function montrerChamp(t) {
+  if (!t || !/^(INPUT|TEXTAREA)$/.test(t.tagName) || t.type === "checkbox" || !t.closest(".panneau")) return;
+  // seulement si le champ est caché (sous le clavier ou sous la barre du haut) : sinon, rien ne bouge sous le doigt
+  setTimeout(function () {
+    if (document.activeElement !== t) return;
+    var r = t.getBoundingClientRect(), haut = vv ? vv.offsetTop : 0, bas = vv ? vv.offsetTop + vv.height : window.innerHeight;
+    if (r.top < haut + 64 || r.bottom > bas - 8) try { t.scrollIntoView({ block: "center", behavior: "auto" }); } catch (e) {}
+  }, 300);
+}
+if (vv) {
+  vv.addEventListener("resize", function () { ajusterClavier(); montrerChamp(document.activeElement); });
+  vv.addEventListener("scroll", ajusterClavier);
+}
+document.addEventListener("focusin", function (e) { montrerChamp(e.target); });
 function fermer() {
   var h = masquerHaut();
   if (h && h.hist) { ignorerPop++; history.back(); }
@@ -61,11 +92,17 @@ document.querySelectorAll("[data-donnees]").forEach(function (b) { b.addEventLis
 var porteScene = document.getElementById("porte"), played = false;
 function playCard() { if (!played && !calm) { played = true; decodeName(); typeRole(); } }
 function ouvrirCarte() { ouvrir("p-carte"); playCard(); }
-document.getElementById("ouvrir-carte").addEventListener("click", ouvrirCarte);
-document.getElementById("ouvrir-projet").addEventListener("click", function () { ouvrirProjet(); });
-document.getElementById("carte-projet").addEventListener("click", function () { ouvrirProjet(); });   // s'ouvre par-dessus la carte
+/* Depuis la carte : « Finalement, décrire mon projet » referme la carte et ramène à la question 1 de la porte */
+var carteProjet = document.getElementById("carte-projet");
+carteProjet.addEventListener("click", function () {
+  fermer();
+  var b = porteQ.querySelector(".q-opt");
+  if (b) try { b.focus({ preventScroll: true }); } catch (e) {}
+  porteQ.scrollIntoView({ block: "center", behavior: "auto" });
+});
 function allerPorte(doux) { porteScene.scrollIntoView({ behavior: doux && !calm ? "smooth" : "auto", block: "start" }); }
-document.getElementById("passer").addEventListener("click", function () { allerPorte(true); });
+var passer = document.getElementById("passer");
+passer.addEventListener("click", function () { allerPorte(true); });
 
 /* Entrée dans le bureau : fondu, puis on se retrouve devant la porte */
 function entrerBureau(apres) {
@@ -73,18 +110,12 @@ function entrerBureau(apres) {
   function arrive() {
     allerPorte(false);
     if (apres) apres();
-    setTimeout(function () { feu(window.innerWidth / 2, window.innerHeight * .96, 2); }, 120);   // en bas : ne cache pas le titre
+    setTimeout(function () { feu(window.innerWidth * .86, window.innerHeight * .1, 1); }, 120);   // en haut à droite, à côté du titre : ne cache pas les réponses
   }
   if (calm) { arrive(); return; }
   f.classList.add("on");
   setTimeout(function () { arrive(); setTimeout(function () { f.classList.remove("on"); }, 60); }, 380);
 }
-var rejouer = function () {};
-document.getElementById("rejouer").addEventListener("click", function () {
-  fermer();
-  rejouer();
-  document.querySelector(".s-jeu").scrollIntoView({ behavior: "auto", block: "start" });
-});
 
 /* ---------- Le parcours : la méthode en 4 étapes. Barre de progression, consigne, flèche ; 3D si possible, sinon 4 cartes ---------- */
 var ETAPES_SECOURS = [
@@ -134,13 +165,19 @@ function startParcours() {
         },
         onArrive: function () {
           progres(5);
-          entrerBureau(function () { JeuBureau.reset(); depart(); });
+          entrerBureau(function () { JeuBureau.figer(); fini(); });   // le jeu reste « entré » : pas de retour au début
         }
       });
     } catch (e) { ok = null; }
   }
   function depart() { progres(0); consigne("Touchez le personnage pour découvrir ma méthode"); if (ok) montrer(JeuBureau.heroScreen, 300); }
-  if (ok) { rejouer = function () { JeuBureau.reset(); depart(); }; depart(); return; }
+  /* Fin du parcours : la scène garde l'état « entré », et n'invite qu'à descendre vers « Votre projet » */
+  function fini() {
+    cacher(); progres(5);
+    consigne("Bienvenue dans mon bureau ! Votre projet, c'est juste en dessous.");
+    passer.textContent = "Votre projet ↓";
+  }
+  if (ok) { depart(); return; }
 
   /* 2. Secours (pas de WebGL, ou Three.js absent) : 4 cartes qui s'allument une par une, puis le bureau */
   var etapes = (window.JeuBureau && JeuBureau.ETAPES) || ETAPES_SECOURS;
@@ -173,16 +210,15 @@ function startParcours() {
     progres(faites);
     if (faites < 5) montrer(cible(cartes[faites]), 250, true); else cacher();
     consigne(faites === 0 ? "Touchez la première étape" : faites < 4 ? "Touchez l'étape suivante" :
-      faites === 4 ? "Dernier toucher : entrez dans mon bureau !" : "");
+      faites === 4 ? "Dernier toucher : entrez dans mon bureau !" : "On entre…");
   }
   cartes.forEach(function (c, i) {
     c.addEventListener("click", function () {
       if (i !== faites) return;
       faites++; etat();
-      if (faites === 5) entrerBureau(function () { faites = 0; etat(); });
+      if (faites === 5) entrerBureau(function () { porte.classList.add("on"); porte.textContent = "Vous êtes entré ✓"; fini(); });   // les 4 étapes restent ouvertes
     });
   });
-  rejouer = function () { faites = 0; etat(); };
   etat();
 }
 
@@ -213,10 +249,6 @@ var qEcran = document.getElementById("q-ecran"), qBarre = document.getElementByI
 
 function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
 function barreQ(f) { qBarre.firstChild.style.width = Math.round(f * 100) + "%"; qBarre.setAttribute("aria-valuenow", Math.round(f * 100)); }
-function ouvrirProjet() {
-  ouvrir("p-projet");
-  if (qEnvoye) merci(); else afficher(qi);
-}
 qRetour.addEventListener("click", function () {
   clearTimeout(qAuto);
   if (qEnvoye || qi === 0) fermer(); else afficher(qi - 1);
@@ -238,6 +270,40 @@ function afficher(i) {
   try { h.focus({ preventScroll: true }); } catch (e) {}
 }
 function suivant() { if (qi < QUESTIONS.length - 1) afficher(qi + 1); }
+/* ---------- La porte : la question 1, posée dans la scène. Un toucher lance le questionnaire (question 2).
+   « Passer cette étape » : le choix de ne pas décrire de projet. Il mène à la carte de visite. ---------- */
+var porteQ = document.getElementById("porte-q");
+function versQuestion2() { ouvrir("p-projet"); afficher(Math.max(1, qi)); }
+function majPorte() {
+  porteQ.innerHTML = "";
+  carteProjet.hidden = qEnvoye;
+  if (qEnvoye) { porteQ.appendChild(blocMerci(false)); return; }
+  var q = QUESTIONS[0];
+  var bar = el("div", "progres"); bar.setAttribute("role", "progressbar"); bar.setAttribute("aria-label", "Progression du questionnaire");
+  bar.setAttribute("aria-valuemin", "0"); bar.setAttribute("aria-valuemax", "100");
+  var f = Math.round(100 / (QUESTIONS.length + 1)); bar.setAttribute("aria-valuenow", f);
+  var bi = el("i"); bi.style.width = f + "%"; bar.appendChild(bi);
+  porteQ.appendChild(bar);
+  var h = el("h3", "q-titre", q.titre); h.id = "porte-q-titre"; porteQ.appendChild(h);
+  var liste = el("div", "q-choix"); liste.setAttribute("role", "group"); liste.setAttribute("aria-labelledby", "porte-q-titre");
+  q.choix.forEach(function (c) {
+    var b = el("button", "q-opt"); b.type = "button"; b.setAttribute("aria-pressed", String(R.profil === c));
+    b.appendChild(el("span", "q-coche")); b.appendChild(el("span", "", c));
+    b.addEventListener("click", function () {
+      if (pile.length) return;
+      R.profil = c;
+      liste.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      clearTimeout(qAuto);
+      qAuto = setTimeout(versQuestion2, calm ? 120 : 280);   // le temps de voir la coche
+    });
+    liste.appendChild(b);
+  });
+  porteQ.appendChild(liste);
+  var pas = el("button", "q-passer", "Passer cette étape"); pas.type = "button"; pas.id = "porte-passer";
+  pas.setAttribute("aria-label", "Passer cette étape : je n'ai pas de projet pour l'instant, voir la carte de visite");
+  pas.addEventListener("click", function () { if (!pile.length) { clearTimeout(qAuto); ouvrirCarte(); } });
+  porteQ.appendChild(pas);
+}
 
 function ecranChoix(q) {
   var multi = q.type === "plusieurs";
@@ -365,16 +431,25 @@ function ecranContact() {
     R.prenom = prenom.value.trim(); R.telephone = tel.value.trim(); R.email = mail.value.trim();
     R.consentement = cb.checked; R.site_web = pgi.value;
   }
-  [prenom, tel, mail].forEach(function (i) { i.addEventListener("input", function () { lire(); }); });
   function erreur(input, msg) {
     var e = document.getElementById(input.getAttribute("aria-describedby"));
     if (e) e.textContent = msg || "";
     if (input.tagName === "INPUT" && input.type !== "checkbox") input.setAttribute("aria-invalid", msg ? "true" : "false");
   }
-  /* Vérification quand on quitte un champ, pas pendant la frappe */
-  tel.addEventListener("blur", function () { lire(); erreur(tel, R.telephone && !telOk(R.telephone) ? "Ce numéro semble incomplet." : ""); });
-  mail.addEventListener("blur", function () { lire(); erreur(mail, R.email && !mailOk(R.email) ? "Cette adresse e-mail semble incomplète." : ""); });
-  prenom.addEventListener("blur", function () { if (prenom.value.trim()) erreur(prenom, ""); });
+  function aErreur(input) { var e = document.getElementById(input.getAttribute("aria-describedby")); return e && e.textContent; }
+  /* Une erreur s'efface dès que le champ est corrigé, pendant la frappe : pas au moment où l'on quitte le champ,
+     sinon la page remonte sous le doigt et le toucher suivant (ex. « SMS ») tombe à côté. */
+  [prenom, tel, mail].forEach(function (i) {
+    i.addEventListener("input", function () {
+      lire();
+      if (aErreur(prenom) && R.prenom) erreur(prenom, "");
+      if (aErreur(tel) && (R.telephone ? telOk(R.telephone) : !!R.email)) erreur(tel, "");
+      if (aErreur(mail) && R.email && mailOk(R.email)) erreur(mail, "");
+    });
+  });
+  /* Vérification quand on quitte un champ, pas pendant la frappe ; après le toucher en cours (setTimeout) */
+  tel.addEventListener("blur", function () { setTimeout(function () { lire(); erreur(tel, R.telephone && !telOk(R.telephone) ? "Ce numéro semble incomplet." : aErreur(tel) && !R.telephone && !R.email ? aErreur(tel) : ""); }, 0); });
+  mail.addEventListener("blur", function () { setTimeout(function () { lire(); erreur(mail, R.email && !mailOk(R.email) ? "Cette adresse e-mail semble incomplète." : ""); }, 0); });
 
   function valider() {
     lire();
@@ -455,31 +530,98 @@ function envoyer(go, st) {
   function fin() { clearTimeout(minuteur); qEnCours = false; go.disabled = false; go.textContent = "Envoyer"; }
 }
 
-function merci() {
-  clearTimeout(qAuto);
-  qEcran.innerHTML = ""; barreQ(1); qRetour.hidden = true;
+/* Le Merci : enregistrer le contact, et les logos. Rien qui renvoie au jeu. Aussi affiché dans la porte après l'envoi. */
+function blocMerci(panneau) {
   var box = el("div", "q-merci");
-  var h = el("h2", "q-titre", "Merci " + R.prenom + "."); h.tabIndex = -1; box.appendChild(h);
-  box.appendChild(el("p", "", "Je vous recontacte sous 48 h pour un appel de 20 minutes, gratuit et sans engagement."));
+  var h = el(panneau ? "h2" : "h3", "q-titre", "Merci " + R.prenom + "."); h.tabIndex = -1; box.appendChild(h);
+  box.appendChild(el("p", "", "C'est bien reçu. Je vous recontacte sous 48 h pour un appel de 20 minutes, gratuit et sans engagement."));
   var a = el("a", "save"); a.href = VCF_URL; a.target = "_blank"; a.rel = "noopener";
   a.appendChild(el("span", "save-ico", "+")).setAttribute("aria-hidden", "true");
   var t = el("span", "save-txt"); t.appendChild(el("strong", "", "Enregistrer mon contact")); t.appendChild(document.createTextNode("Téléphone et mail dans votre répertoire"));
   a.appendChild(t); box.appendChild(a);
-  var b = el("button", "q-suite second", "Fermer"); b.type = "button"; b.addEventListener("click", fermer); box.appendChild(b);
+  var logos = document.querySelector("#p-carte .reseaux").cloneNode(true); logos.style.marginTop = "18px";
+  box.appendChild(logos);
+  return box;
+}
+function merci() {
+  clearTimeout(qAuto);
+  qEcran.innerHTML = ""; barreQ(1); qRetour.hidden = true;
+  var box = blocMerci(true);
   qEcran.appendChild(box);
-  try { h.focus({ preventScroll: true }); } catch (e) {}
+  document.getElementById("q-defile").scrollTop = 0;
+  try { box.firstChild.focus({ preventScroll: true }); } catch (e) {}
 }
 
 document.addEventListener("DOMContentLoaded", function () {
   qr("qr-page", PAGE_URL);
+  majPorte();
   startParcours();
 });
 
-/* La vidéo démarre seule, sans le son ; relance si le téléphone l'a bloquée */
+/* Scène 1 : la vidéo suit le défilement. 49 images WebP (defile/f01…f49, 16 i/s sur 3 s), dessinées sur un canvas.
+   Plus fiable sur iPhone que de déplacer currentTime dans un mp4. Descendre = avancer, remonter = reculer.
+   Le défilement ne fait que noter une cible ; requestAnimationFrame lisse et dessine (fondu entre deux images voisines).
+   Mouvement réduit : rien de tout ça, l'affiche reste fixe. Image manquante : on garde la plus proche, ou l'image fixe. */
+var Defile = null;
 (function () {
-  var v = document.getElementById("vid");
-  function go() { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
-  go(); document.addEventListener("touchstart", go, { once: true, passive: true });
+  if (!document.documentElement.classList.contains("defile-video")) return;
+  var N = 49, sec = document.getElementById("s-video"), cv = document.getElementById("vid-defile"), ctx = cv.getContext("2d");
+  var hint = document.getElementById("hint-video");
+  var imgs = new Array(N), cible = 0, cur = 0, raf = 0, dessinee = -1, course = 1, W = 0, H = 0;
+  function nom(i) { return "defile/f" + (i < 9 ? "0" : "") + (i + 1) + ".webp"; }
+  function mesurer() {
+    course = Math.max(1, sec.offsetHeight - window.innerHeight);
+    var d = Math.min(window.devicePixelRatio || 1, 2);
+    W = Math.round(cv.clientWidth * d); H = Math.round(cv.clientHeight * d);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; dessinee = -1; }
+  }
+  function lireDefile() { cible = Math.min(1, Math.max(0, window.scrollY / course)); }
+  function proche(i) {   // l'image chargée la plus proche de i
+    for (var k = 0; k < N; k++) { if (imgs[i - k] && imgs[i - k].ok) return i - k; if (imgs[i + k] && imgs[i + k].ok) return i + k; }
+    return -1;
+  }
+  function couvrir(im, a) {
+    var s = Math.max(W / im.naturalWidth, H / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s;
+    ctx.globalAlpha = a; ctx.drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
+  }
+  function dessiner() {
+    var f = cur * (N - 1), i = Math.floor(f), a = f - i, j = Math.min(N - 1, i + 1);
+    var cle = Math.round(f * 20);
+    if (cle === dessinee) return;
+    var ii = proche(i); if (ii < 0) return;
+    couvrir(imgs[ii], 1);
+    if (a > 0.02 && j !== ii && imgs[j] && imgs[j].ok) couvrir(imgs[j], a);
+    ctx.globalAlpha = 1; dessinee = cle;
+    if (!cv.classList.contains("pret")) cv.classList.add("pret");
+  }
+  function boucle() {
+    raf = 0;
+    cur += (cible - cur) * 0.22;                 // léger lissage
+    if (Math.abs(cible - cur) < 0.0015) cur = cible;
+    dessiner();
+    hint.style.opacity = String(Math.max(0, 1 - cur * 2.5));
+    if (cur !== cible) raf = requestAnimationFrame(boucle);
+  }
+  function demander() { if (!raf) raf = requestAnimationFrame(boucle); }
+  window.addEventListener("scroll", function () { lireDefile(); demander(); }, { passive: true });
+  window.addEventListener("resize", function () { mesurer(); lireDefile(); demander(); });
+  /* Chargement progressif : d'abord une image sur 8, puis 1 sur 4, 1 sur 2, puis toutes ; 4 à la fois au plus */
+  var ordre = [], vu = {};
+  [8, 4, 2, 1].forEach(function (pas) { for (var i = 0; i < N; i += pas) if (!vu[i]) { vu[i] = 1; ordre.push(i); } });
+  if (!vu[N - 1]) ordre.splice(1, 0, N - 1);
+  var enCours = 0, pos = 0;
+  function suivante() {
+    while (enCours < 4 && pos < ordre.length) {
+      (function (i) {
+        var im = new Image(); enCours++;
+        im.onload = function () { im.ok = true; enCours--; dessinee = -1; demander(); suivante(); };
+        im.onerror = function () { enCours--; suivante(); };   // image manquante : on fera avec les voisines
+        im.src = nom(i); imgs[i] = im;
+      })(ordre[pos++]);
+    }
+  }
+  mesurer(); lireDefile(); cur = cible; suivante();   // script en defer : la page est déjà construite
+  Defile = { etat: function () { return { cible: cible, cur: cur, image: Math.round(cur * (N - 1)) + 1, chargees: imgs.filter(function (x) { return x && x.ok; }).length }; } };
 })();
 
 var decodeName = function () {}, typeRole = function () {};

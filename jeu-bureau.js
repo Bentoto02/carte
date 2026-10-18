@@ -2,7 +2,7 @@
  * Suppose THREE (build UMD r128) déjà chargé.
  * API : JeuBureau.mount(conteneur, { onStep(index, titre, phrase), onArrive(), onWalk(vers), onQueue() })
  *       → renvoie l'API, ou null si WebGL manque.
- *       JeuBureau.reset()   JeuBureau.stop()   JeuBureau.heroScreen() → {x, y} des pieds du personnage, en px dans le conteneur
+ *       JeuBureau.reset()   JeuBureau.stop()   JeuBureau.figer() (fin : porte ouverte, plus aucun toucher)   JeuBureau.heroScreen() → {x, y} des pieds du personnage, en px dans le conteneur
  * Un toucher = une étape. 4 stations (Comprendre, Proposer, Mettre en place, Accompagner), puis la porte du bureau.
  * Un toucher pendant la marche est gardé : le personnage repart 0,8 s après son arrivée.
  */
@@ -677,7 +677,8 @@
     var burstDone = false;
 
     function advance() {
-      if (G.state === "done") { reset(); return; }
+      // une fois le bureau atteint, un toucher ne fait plus rien : le parcours ne recommence pas
+      if (G.state === "done" || G.state === "fini") return;
       if (G.state === "walk") { if (!G.queued && G.idx + 1 < WAY.length - 1) { G.queued = true; call("onQueue"); } return; }
       if (G.state !== "idle" || G.idx >= WAY.length - 1) return;
       G.firstTap = true; G.waitT = 0;
@@ -695,6 +696,16 @@
       S.camV = vOf(START); updateHint();
     }
     S.resetState = resetState;
+
+    // État final figé : porte ouverte, personnage entré, caméra revenue au plan normal devant le bureau
+    S.figer = function () {
+      G.state = "fini"; G.idx = WAY.length - 1; G.queued = false; G.waitT = 0;
+      hero.visible = false; hinge.rotation.y = -1.7; parts.visible = false; bubble.visible = false;
+      S.zoom0 = null; cam.zoom = 1; cam.updateProjectionMatrix(); veil.style.opacity = "";
+      S.camV = vOf(DOOR_IN) - 3.4; placeCamera(); updateHint();
+      canvas.setAttribute("aria-label", "Vous êtes entré dans mon bureau"); canvas.removeAttribute("role"); canvas.tabIndex = -1;
+      if (!S.raf) renderer.render(scene, cam);
+    };
 
     // position du personnage à l'écran (px, dans le conteneur), pour poser la main d'aide
     var tmpV = new THREE.Vector3();
@@ -915,6 +926,7 @@
   }
 
   function reset() { if (inst) inst.resetState(); }
+  function figer() { if (inst) inst.figer(); }
 
   function stop() {
     var S = inst; if (!S) return;
@@ -935,7 +947,7 @@
   }
 
   var api = {
-    mount: mount, reset: reset, stop: stop,
+    mount: mount, reset: reset, stop: stop, figer: figer,
     CONSIGNE: CONSIGNE, ETAPES: ETAPES,
     heroScreen: function () { return inst ? inst.heroScreen() : null; },
     // aide aux tests : état courant, sans effet sur le jeu
